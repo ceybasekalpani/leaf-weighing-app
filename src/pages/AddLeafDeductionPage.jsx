@@ -1,24 +1,19 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, ScrollView } from 'react-native';
 import {
     Button,
     Card,
     Divider,
     IconButton,
     SegmentedButtons,
-    Text, // ✅ Comma added here
+    Text,
     TextInput,
     useTheme as usePaperTheme
 } from 'react-native-paper';
-import ResponsiveCard from '../../components/ResponsiveCard';
-import ResponsiveContainer from '../../components/ResponsiveContainer';
-import ResponsiveDateHeader from '../../components/ResponsiveDateHeader';
-import ResponsiveGrid from '../../components/ResponsiveGrid';
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
     getButtonHeight,
-    getInputHeight,
     isTablet,
     moderateScale,
     responsiveFontSize,
@@ -41,14 +36,14 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [coarce, setCoarce] = useState('');
   const [water, setWater] = useState('');
   const [boiled, setBoiled] = useState('');
-  const [rejected] = useState('0');
+  const [rejected, setRejected] = useState('');
 
   // Calculate totals
   const totalBagWeight = bagWeight ? (parseInt(bags) * parseFloat(bagWeight)).toFixed(2) : '0.00';
   const totalCoarce = coarce ? (parseInt(bags) * parseFloat(coarce)).toFixed(2) : '0.00';
   const totalWater = water ? (parseInt(bags) * parseFloat(water)).toFixed(2) : '0.00';
   const totalBoiled = boiled ? (parseInt(bags) * parseFloat(boiled)).toFixed(2) : '0.00';
-  const totalRejected = '0.00';
+  const totalRejected = rejected ? (parseInt(bags) * parseFloat(rejected)).toFixed(2) : '0.00';
   
   const calculateNetWeight = () => {
     const grossWeight = parseFloat(gross) || 0;
@@ -94,153 +89,194 @@ export default function AddLeafDeductionPage({ navigation }) {
     setCoarce('');
     setWater('');
     setBoiled('');
+    setRejected('');
     setLeafType('green');
   };
 
-  const renderInputField = (label, value, onChange, icon, keyboardType = 'default', disabled = false) => (
-    <TextInput
-      label={label}
-      value={value}
-      onChangeText={onChange}
-      mode="outlined"
-      disabled={disabled}
-      keyboardType={keyboardType}
-      left={icon ? <TextInput.Icon icon={icon} /> : null}
-      style={[
-        styles.input,
-        { height: getInputHeight() }
-      ]}
-      theme={{ colors: { primary: paperTheme.colors.primary } }}
-    />
+  // Date Header Component
+  const DateHeader = () => (
+    <View style={styles.dateHeaderContainer}>
+      <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+        <IconButton icon="calendar" size={20} iconColor={paperTheme.colors.primary} />
+        <View>
+          <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Date</Text>
+          <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>{date}</Text>
+        </View>
+      </View>
+      <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+        <IconButton icon="calendar-month" size={20} iconColor={paperTheme.colors.secondary} />
+        <View>
+          <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Month</Text>
+          <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>{month}</Text>
+        </View>
+      </View>
+    </View>
   );
 
-  const renderDisplayField = (label, value, color) => (
-    <View style={styles.displayField}>
-      <Text variant="bodySmall" style={{ color: paperTheme.colors.textSecondary }}>
-        {label}
-      </Text>
-      <Text 
-        variant={isTabletDevice ? "titleLarge" : "headlineSmall"} 
-        style={{ color, fontWeight: 'bold', fontSize: responsiveFontSize(18) }}
-      >
-        {value}
-      </Text>
+  // Input Row Component
+  const InputRow = ({ label, value, onChange, icon, totalLabel, totalValue, totalColor, keyboardType = 'default', disabled = false }) => (
+    <View style={styles.inputRow}>
+      <View style={styles.inputContainer}>
+        <TextInput
+          label={label}
+          value={value}
+          onChangeText={onChange}
+          mode="outlined"
+          disabled={disabled}
+          keyboardType={keyboardType}
+          left={icon ? <TextInput.Icon icon={icon} /> : null}
+          style={styles.smallInput}
+          dense={true}
+          theme={{ 
+            colors: { 
+              primary: paperTheme.colors.primary,
+              text: paperTheme.colors.text,
+              placeholder: paperTheme.colors.placeholder,
+              background: paperTheme.colors.surface
+            } 
+          }}
+        />
+      </View>
+      <View style={styles.totalContainer}>
+        <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
+        <Text style={[styles.totalValue, { color: totalColor }]}>{totalValue}</Text>
+      </View>
     </View>
   );
 
   return (
-    <ResponsiveContainer>
-      <ResponsiveDateHeader />
-      
-      <ResponsiveCard>
+    <ScrollView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+      <DateHeader />
+
+      <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
         <Card.Content>
           <View style={styles.headerContainer}>
-            <IconButton 
-              icon="leaf" 
-              size={isTabletDevice ? 48 : 32} 
-              iconColor={paperTheme.colors.primary} 
-            />
-            <Text 
-              variant={isTabletDevice ? "displaySmall" : "headlineSmall"} 
-              style={[styles.title, { color: paperTheme.colors.primary }]}
-            >
+            <IconButton icon="leaf" size={28} iconColor={paperTheme.colors.primary} />
+            <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
               Add Leaf Deduction
             </Text>
           </View>
 
-          <ResponsiveGrid>
-            {/* Registration Number */}
-            {renderInputField("Registration Number", regNo, setRegNo, "card-account-details")}
+          {/* Registration Number */}
+          <TextInput
+            label="Registration Number"
+            value={regNo}
+            onChangeText={setRegNo}
+            mode="outlined"
+            left={<TextInput.Icon icon="card-account-details" />}
+            style={styles.fullWidthInput}
+            dense={true}
+            theme={{ colors: { primary: paperTheme.colors.primary } }}
+          />
 
-            {/* Route */}
-            {renderInputField("Route", route, null, "map-marker", 'default', true)}
+          {/* Route (Display Only) */}
+          <TextInput
+            label="Route"
+            value={route}
+            mode="outlined"
+            disabled
+            left={<TextInput.Icon icon="map-marker" />}
+            style={styles.fullWidthInput}
+            dense={true}
+          />
 
-            {/* Leaf Type */}
-            <View style={styles.sectionContainer}>
-              <Text variant="titleMedium" style={[styles.sectionTitle, { color: paperTheme.colors.text }]}>
-                Leaf Type
-              </Text>
-              <SegmentedButtons
-                value={leafType}
-                onValueChange={setLeafType}
-                buttons={[
-                  { 
-                    value: 'green', 
-                    label: '🍃 Green',
-                    style: { 
-                      backgroundColor: leafType === 'green' ? paperTheme.colors.primary : paperTheme.colors.surface,
-                    }
-                  },
-                  { 
-                    value: 'black', 
-                    label: '🖤 Black',
-                    style: { 
-                      backgroundColor: leafType === 'black' ? paperTheme.colors.primary : paperTheme.colors.surface,
-                    }
-                  },
-                  { 
-                    value: 'mixed', 
-                    label: '🔄 Mixed',
-                    style: { 
-                      backgroundColor: leafType === 'mixed' ? paperTheme.colors.primary : paperTheme.colors.surface,
-                    }
-                  },
-                ]}
-                style={styles.segmentedButtons}
-              />
+          {/* Leaf Type */}
+          <Text variant="bodyMedium" style={[styles.sectionLabel, { color: paperTheme.colors.text }]}>
+            Leaf Type
+          </Text>
+          <SegmentedButtons
+            value={leafType}
+            onValueChange={setLeafType}
+            buttons={[
+              { value: 'green', label: '🍃 Green' },
+              { value: 'black', label: '🖤 Black' },
+              { value: 'mixed', label: '🔄 Mixed' },
+            ]}
+            style={styles.segmentedButtons}
+            theme={{ colors: { secondaryContainer: paperTheme.colors.primary } }}
+          />
+
+          {/* Bags and Gross Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Bags</Text>
+              <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{bags}</Text>
             </View>
-
-            {/* Bags and Gross */}
-            <View style={styles.row}>
-              {renderInputField("Bags", bags, null, "sack", 'default', true)}
-              {renderInputField("Gross (kg)", gross, null, "weight", 'default', true)}
+            <View style={styles.statBox}>
+              <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Gross (kg)</Text>
+              <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{gross}</Text>
             </View>
-
-            {/* Bag Weight */}
-            <View style={styles.row}>
-              {renderInputField("Bag Weight (kg)", bagWeight, setBagWeight, "weight-kilogram", 'numeric')}
-              {renderDisplayField("Total Bag Weight", `${totalBagWeight} kg`, paperTheme.colors.primary)}
-            </View>
-
-            {/* Coarce */}
-            <View style={styles.row}>
-              {renderInputField("Coarce (kg)", coarce, setCoarce, "leaf-off", 'numeric')}
-              {renderDisplayField("Total Coarce", `${totalCoarce} kg`, paperTheme.colors.error)}
-            </View>
-
-            {/* Water */}
-            <View style={styles.row}>
-              {renderInputField("Water (kg)", water, setWater, "water", 'numeric')}
-              {renderDisplayField("Total Water", `${totalWater} kg`, paperTheme.colors.info)}
-            </View>
-
-            {/* Boiled */}
-            <View style={styles.row}>
-              {renderInputField("Boiled/Other (kg)", boiled, setBoiled, "fire", 'numeric')}
-              {renderDisplayField("Total Boiled", `${totalBoiled} kg`, paperTheme.colors.warning)}
-            </View>
-
-            {/* Rejected */}
-            <View style={styles.row}>
-              {renderInputField("Rejected (kg)", rejected, null, "close-circle", 'default', true)}
-              {renderDisplayField("Total Rejected", `${totalRejected} kg`, paperTheme.colors.error)}
-            </View>
-          </ResponsiveGrid>
+          </View>
 
           <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
+          {/* Input Rows */}
+          <InputRow
+            label="Bag Weight"
+            value={bagWeight}
+            onChange={setBagWeight}
+            icon="weight-kilogram"
+            totalLabel="Total Bag Weight"
+            totalValue={`${totalBagWeight} kg`}
+            totalColor={paperTheme.colors.primary}
+            keyboardType="numeric"
+          />
+
+          <InputRow
+            label="Coarce"
+            value={coarce}
+            onChange={setCoarce}
+            icon="leaf-off"
+            totalLabel="Total Coarce"
+            totalValue={`${totalCoarce} kg`}
+            totalColor={paperTheme.colors.error}
+            keyboardType="numeric"
+          />
+
+          <InputRow
+            label="Water"
+            value={water}
+            onChange={setWater}
+            icon="water"
+            totalLabel="Total Water"
+            totalValue={`${totalWater} kg`}
+            totalColor={paperTheme.colors.info}
+            keyboardType="numeric"
+          />
+
+          <InputRow
+            label="Boiled"
+            value={boiled}
+            onChange={setBoiled}
+            icon="fire"
+            totalLabel="Total Boiled"
+            totalValue={`${totalBoiled} kg`}
+            totalColor={paperTheme.colors.warning}
+            keyboardType="numeric"
+          />
+
+          <InputRow
+            label="Rejected"
+            value={rejected}
+            onChange={setRejected}
+            icon="close-circle"
+            totalLabel="Total Rejected"
+            totalValue={`${totalRejected} kg`}
+            totalColor={paperTheme.colors.error}
+            keyboardType="numeric"
+          />
+
+          <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
+
+          {/* Net Weight */}
           <View style={styles.netWeightContainer}>
-            <Text variant={isTabletDevice ? "displaySmall" : "titleLarge"} style={{ color: paperTheme.colors.text }}>
-              Net Weight
-            </Text>
-            <Text 
-              variant={isTabletDevice ? "displayMedium" : "displaySmall"} 
-              style={{ color: paperTheme.colors.success, fontWeight: 'bold' }}
-            >
+            <Text style={[styles.netWeightLabel, { color: paperTheme.colors.text }]}>Net Weight</Text>
+            <Text style={[styles.netWeightValue, { color: paperTheme.colors.success }]}>
               {calculateNetWeight()} kg
             </Text>
           </View>
 
+          {/* Buttons */}
           <View style={styles.buttonContainer}>
             <Button 
               mode="contained" 
@@ -248,8 +284,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               style={[styles.button, styles.saveButton]}
               icon="content-save"
               buttonColor={paperTheme.colors.primary}
-              labelStyle={[styles.buttonLabel, { fontSize: responsiveFontSize(16) }]}
-              contentStyle={{ height: getButtonHeight() }}
+              labelStyle={styles.buttonLabel}
             >
               Save
             </Button>
@@ -259,64 +294,127 @@ export default function AddLeafDeductionPage({ navigation }) {
               style={styles.button}
               icon="close"
               textColor={paperTheme.colors.error}
-              labelStyle={[styles.buttonLabel, { fontSize: responsiveFontSize(16) }]}
-              contentStyle={{ height: getButtonHeight() }}
+              labelStyle={styles.buttonLabel}
             >
               Clear
             </Button>
           </View>
         </Card.Content>
-      </ResponsiveCard>
-    </ResponsiveContainer>
+      </Card>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  dateHeaderContainer: {
+    flexDirection: 'row',
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  dateBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: responsiveSpacing.sm,
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    elevation: 2,
+  },
+  dateLabel: {
+    fontSize: responsiveFontSize(12),
+  },
+  dateValue: {
+    fontSize: responsiveFontSize(16),
+    fontWeight: 'bold',
+  },
+  card: {
+    margin: responsiveSpacing.md,
+    borderRadius: moderateScale(12),
+    elevation: 4,
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.xl,
+    marginBottom: responsiveSpacing.lg,
   },
   title: {
     fontWeight: 'bold',
     marginLeft: responsiveSpacing.sm,
   },
-  sectionContainer: {
+  fullWidthInput: {
     marginBottom: responsiveSpacing.md,
+    height: moderateScale(48),
   },
-  sectionTitle: {
-    marginBottom: responsiveSpacing.sm,
-  },
-  input: {
-    marginBottom: responsiveSpacing.md,
-    flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
-    width: '100%',
-  },
-  displayField: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingHorizontal: responsiveSpacing.sm,
-    minHeight: moderateScale(56),
+  sectionLabel: {
+    marginBottom: responsiveSpacing.xs,
   },
   segmentedButtons: {
     marginBottom: responsiveSpacing.md,
   },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: responsiveSpacing.md,
+  },
+  statBox: {
+    flex: 1,
+    padding: responsiveSpacing.sm,
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginHorizontal: responsiveSpacing.xs,
+  },
+  statLabel: {
+    fontSize: responsiveFontSize(12),
+  },
+  statValue: {
+    fontSize: responsiveFontSize(16),
+    fontWeight: 'bold',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  inputContainer: {
+    flex: 1,
+  },
+  smallInput: {
+    height: moderateScale(44),
+  },
+  totalContainer: {
+    flex: 0.8,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: responsiveSpacing.sm,
+  },
+  totalLabel: {
+    fontSize: responsiveFontSize(11),
+  },
+  totalValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: 'bold',
+  },
   divider: {
-    marginVertical: responsiveSpacing.lg,
+    marginVertical: responsiveSpacing.md,
   },
   netWeightContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.xl,
+    marginBottom: responsiveSpacing.lg,
     paddingHorizontal: responsiveSpacing.sm,
+  },
+  netWeightLabel: {
+    fontSize: responsiveFontSize(16),
+  },
+  netWeightValue: {
+    fontSize: responsiveFontSize(20),
+    fontWeight: 'bold',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -325,12 +423,13 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    borderRadius: moderateScale(30),
+    borderRadius: moderateScale(25),
   },
   saveButton: {
     elevation: 4,
   },
   buttonLabel: {
+    fontSize: responsiveFontSize(14),
     paddingVertical: responsiveSpacing.xs,
   },
 });

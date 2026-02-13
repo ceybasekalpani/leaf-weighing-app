@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
+    ActivityIndicator,
     Button,
     Chip,
+    DataTable,
     Dialog,
+    IconButton,
     Portal,
     Searchbar,
     Surface,
     Text,
     useTheme as usePaperTheme
 } from 'react-native-paper';
-import ResponsiveContainer from '../../components/ResponsiveContainer';
-import ResponsiveDateHeader from '../../components/ResponsiveDateHeader';
-import ResponsiveTable from '../../components/ResponsiveTable';
 import { useLeafData } from '../context/LeafDataContext';
+import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
-    getModalWidth,
     isTablet,
+    moderateScale,
     responsiveFontSize,
     responsiveSpacing
 } from '../utils/responsiveUtils';
@@ -33,6 +34,31 @@ export default function ViewLeafCollectionPage({ navigation }) {
   const [stats, setStats] = useState({ total: 0, netWeight: 0 });
 
   const isTabletDevice = isTablet();
+
+  // Date Header
+  const DateHeader = () => {
+    const date = getCurrentDate();
+    const month = getCurrentMonth();
+    
+    return (
+      <View style={styles.dateHeaderContainer}>
+        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+          <IconButton icon="calendar" size={18} iconColor={paperTheme.colors.primary} />
+          <View>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Date</Text>
+            <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>{date}</Text>
+          </View>
+        </View>
+        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+          <IconButton icon="calendar-month" size={18} iconColor={paperTheme.colors.secondary} />
+          <View>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Month</Text>
+            <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>{month}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -53,7 +79,6 @@ export default function ViewLeafCollectionPage({ navigation }) {
   );
 
   useEffect(() => {
-    // Calculate stats
     const total = filteredCollections.length;
     const net = filteredCollections.reduce((sum, item) => 
       sum + (parseFloat(item.netWeight) || 0), 0
@@ -66,89 +91,22 @@ export default function ViewLeafCollectionPage({ navigation }) {
     setDialogVisible(true);
   };
 
-  // Table columns configuration
-  const columns = [
-    { 
-      title: 'Reg No', 
-      key: 'regNo', 
-      width: isTabletDevice ? 100 : 80,
-    },
-    { 
-      title: 'Name', 
-      key: 'name', 
-      render: (row) => `Supplier ${row.regNo?.slice(-4) || '001'}`,
-      width: isTabletDevice ? 120 : 100,
-    },
-    { 
-      title: 'Bags', 
-      key: 'bags', 
-      numeric: true,
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Gross', 
-      key: 'gross', 
-      numeric: true,
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Bag Wt', 
-      key: 'totalBagWeight', 
-      numeric: true,
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Coarce', 
-      key: 'totalCoarce', 
-      numeric: true, 
-      cellTextStyle: { color: paperTheme.colors.error },
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Water', 
-      key: 'totalWater', 
-      numeric: true, 
-      cellTextStyle: { color: paperTheme.colors.info },
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Boiled', 
-      key: 'totalBoiled', 
-      numeric: true, 
-      cellTextStyle: { color: paperTheme.colors.warning },
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Rejected', 
-      key: 'totalRejected', 
-      numeric: true, 
-      cellTextStyle: { color: paperTheme.colors.error },
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'Route', 
-      key: 'route',
-      width: isTabletDevice ? 120 : 100,
-    },
-    { 
-      title: 'Net', 
-      key: 'netWeight', 
-      numeric: true, 
-      cellTextStyle: { color: paperTheme.colors.success, fontWeight: 'bold' },
-      width: isTabletDevice ? 80 : 60,
-    },
-    { 
-      title: 'User', 
-      key: 'user', 
-      render: () => 'Admin',
-      width: isTabletDevice ? 80 : 70,
-    },
-  ];
+  const from = page * itemsPerPage;
+  const to = Math.min((page + 1) * itemsPerPage, filteredCollections.length);
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: paperTheme.colors.background }]}>
+        <ActivityIndicator size="large" color={paperTheme.colors.primary} />
+        <Text style={[styles.loadingText, { color: paperTheme.colors.textSecondary }]}>Loading collections...</Text>
+      </View>
+    );
+  }
 
   return (
-    <ResponsiveContainer>
+    <View style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
       <Surface style={[styles.header, { backgroundColor: paperTheme.colors.surface, elevation: 4 }]}>
-        <ResponsiveDateHeader />
+        <DateHeader />
         
         <Searchbar
           placeholder="Search by registration or route"
@@ -163,100 +121,145 @@ export default function ViewLeafCollectionPage({ navigation }) {
         <View style={styles.statsContainer}>
           <Chip 
             icon="leaf" 
-            style={[styles.chip, { backgroundColor: paperTheme.colors.primary }]}
-            textStyle={{ color: '#FFFFFF', fontSize: responsiveFontSize(12) }}
+            style={[styles.chip, { backgroundColor: paperTheme.colors.primary + '15' }]}
+            textStyle={{ color: paperTheme.colors.primary, fontSize: responsiveFontSize(12), fontWeight: '600' }}
           >
             Total: {stats.total}
           </Chip>
           <Chip 
             icon="weight" 
-            style={[styles.chip, { backgroundColor: paperTheme.colors.success }]}
-            textStyle={{ color: '#FFFFFF', fontSize: responsiveFontSize(12) }}
+            style={[styles.chip, { backgroundColor: paperTheme.colors.success + '15' }]}
+            textStyle={{ color: paperTheme.colors.success, fontSize: responsiveFontSize(12), fontWeight: '600' }}
           >
             Net: {stats.netWeight.toFixed(2)} kg
           </Chip>
         </View>
       </Surface>
 
-      <ResponsiveTable
-        columns={columns}
-        data={filteredCollections}
-        page={page}
-        onPageChange={setPage}
-        itemsPerPage={itemsPerPage}
-        totalItems={filteredCollections.length}
-        loading={loading}
-        onRowPress={handleRowPress}
-        emptyMessage="No leaf collections found"
-      />
+      {/* Table with Borders */}
+      <View style={styles.tableWrapper}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={true}
+          style={styles.horizontalScroll}
+        >
+          <View style={styles.tableContainer}>
+            {/* Header Row */}
+            <View style={[styles.headerRow, { backgroundColor: paperTheme.colors.primary + '15' }]}>
+              <Text style={[styles.headerCell, styles.regNoColumn, { color: paperTheme.colors.primary }]}>Reg No</Text>
+              <Text style={[styles.headerCell, styles.nameColumn, { color: paperTheme.colors.primary }]}>Name</Text>
+              <Text style={[styles.headerCell, styles.smallColumn, { color: paperTheme.colors.primary }]}>Bags</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Gross</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Bag Wt</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Coarce</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Water</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Boiled</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Rejected</Text>
+              <Text style={[styles.headerCell, styles.routeColumn, { color: paperTheme.colors.primary }]}>Route</Text>
+              <Text style={[styles.headerCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.primary }]}>Net</Text>
+            </View>
+
+            {/* Data Rows */}
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+              {filteredCollections.slice(from, to).map((item, index) => (
+                <View 
+                  key={item.id || index}
+                  style={[
+                    styles.dataRow,
+                    { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }
+                  ]}
+                  onTouchEnd={() => handleRowPress(item)}
+                >
+                  <Text style={[styles.dataCell, styles.regNoColumn, { color: paperTheme.colors.text }]}>
+                    {item.regNo || 'N/A'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.nameColumn, { color: paperTheme.colors.text }]}>
+                    Sup {item.regNo?.slice(-4) || '001'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.smallColumn, { color: paperTheme.colors.text }]}>
+                    {item.bags || '0'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.gross || '0'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.totalBagWeight || '0.00'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.totalCoarce || '0.00'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.totalWater || '0.00'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.totalBoiled || '0.00'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                    {item.totalRejected || '0.00'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.routeColumn, { color: paperTheme.colors.text }]}>
+                    {item.route || 'N/A'}
+                  </Text>
+                  <Text style={[styles.dataCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.success, fontWeight: '600' }]}>
+                    {item.netWeight || '0.00'}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Pagination */}
+      {filteredCollections.length > 0 && (
+        <DataTable.Pagination
+          page={page}
+          numberOfPages={Math.ceil(filteredCollections.length / itemsPerPage)}
+          onPageChange={setPage}
+          label={`${from + 1}-${to} of ${filteredCollections.length}`}
+          showFastPaginationControls
+          numberOfItemsPerPage={itemsPerPage}
+          style={[styles.pagination, { backgroundColor: paperTheme.colors.surface, borderTopColor: paperTheme.colors.border }]}
+          labelStyle={{ color: paperTheme.colors.text }}
+        />
+      )}
 
       {/* Details Dialog */}
       <Portal>
         <Dialog 
           visible={dialogVisible} 
           onDismiss={() => setDialogVisible(false)}
-          style={[styles.dialog, { width: getModalWidth() }]}
+          style={[styles.dialog, { backgroundColor: paperTheme.colors.surface }]}
         >
-          <Dialog.Title style={styles.dialogTitle}>
+          <Dialog.Title style={[styles.dialogTitle, { color: paperTheme.colors.primary }]}>
             Collection Details
           </Dialog.Title>
           <Dialog.Content>
             {selectedItem && (
               <View style={styles.dialogContent}>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Registration No:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.regNo}</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Route:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.route}</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Date:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.date} {selectedItem.month}</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Bags:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.bags}</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Gross Weight:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.gross} kg</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Bag Weight:</Text>
-                  <Text style={styles.dialogValue}>{selectedItem.totalBagWeight} kg</Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Coarce:</Text>
-                  <Text style={[styles.dialogValue, { color: paperTheme.colors.error }]}>
-                    {selectedItem.totalCoarce} kg
-                  </Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Water:</Text>
-                  <Text style={[styles.dialogValue, { color: paperTheme.colors.info }]}>
-                    {selectedItem.totalWater} kg
-                  </Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Boiled:</Text>
-                  <Text style={[styles.dialogValue, { color: paperTheme.colors.warning }]}>
-                    {selectedItem.totalBoiled} kg
-                  </Text>
-                </View>
-                <View style={styles.dialogRow}>
-                  <Text style={styles.dialogLabel}>Rejected:</Text>
-                  <Text style={[styles.dialogValue, { color: paperTheme.colors.error }]}>
-                    {selectedItem.totalRejected} kg
-                  </Text>
-                </View>
-                <View style={[styles.dialogRow, styles.netRow]}>
-                  <Text style={styles.dialogLabel}>Net Weight:</Text>
-                  <Text style={[styles.dialogValue, { color: paperTheme.colors.success, fontWeight: 'bold' }]}>
-                    {selectedItem.netWeight} kg
-                  </Text>
-                </View>
+                {Object.entries({
+                  'Registration No': selectedItem.regNo,
+                  'Route': selectedItem.route,
+                  'Date': `${selectedItem.date} ${selectedItem.month}`,
+                  'Bags': selectedItem.bags,
+                  'Gross Weight': `${selectedItem.gross} kg`,
+                  'Bag Weight': `${selectedItem.totalBagWeight} kg`,
+                  'Coarce': `${selectedItem.totalCoarce} kg`,
+                  'Water': `${selectedItem.totalWater} kg`,
+                  'Boiled': `${selectedItem.totalBoiled} kg`,
+                  'Rejected': `${selectedItem.totalRejected} kg`,
+                  'Net Weight': `${selectedItem.netWeight} kg`
+                }).map(([label, value], index) => (
+                  <View key={index} style={[styles.dialogRow, { borderBottomColor: paperTheme.colors.border }]}>
+                    <Text style={[styles.dialogLabel, { color: paperTheme.colors.textSecondary }]}>{label}:</Text>
+                    <Text style={[
+                      styles.dialogValue, 
+                      { color: label === 'Net Weight' ? paperTheme.colors.success : paperTheme.colors.text }
+                    ]}>
+                      {value}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
           </Dialog.Content>
@@ -265,34 +268,132 @@ export default function ViewLeafCollectionPage({ navigation }) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </ResponsiveContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: responsiveSpacing.md,
+    fontSize: responsiveFontSize(14),
+  },
   header: {
     padding: responsiveSpacing.md,
+  },
+  dateHeaderContainer: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.sm,
   },
+  dateBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: responsiveSpacing.xs,
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+  },
+  dateLabel: {
+    fontSize: responsiveFontSize(11),
+  },
+  dateValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: 'bold',
+  },
   searchbar: {
-    marginTop: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.md,
+    marginVertical: responsiveSpacing.sm,
     elevation: 2,
   },
   statsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: responsiveSpacing.sm,
   },
   chip: {
-    marginRight: responsiveSpacing.xs,
-    marginBottom: responsiveSpacing.xs,
+    height: moderateScale(32),
+  },
+  tableWrapper: {
+    flex: 1,
+    margin: responsiveSpacing.sm,
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  horizontalScroll: {
+    flex: 1,
+  },
+  tableContainer: {
+    minWidth: '100%',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E0E0E0',
+  },
+  dataRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerCell: {
+    paddingVertical: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.sm,
+    fontSize: responsiveFontSize(13),
+    fontWeight: '700',
+    borderRightWidth: 1,
+    borderRightColor: '#E0E0E0',
+    textAlign: 'center',
+  },
+  dataCell: {
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.sm,
+    fontSize: responsiveFontSize(12),
+    borderRightWidth: 1,
+    borderRightColor: '#E0E0E0',
+    textAlign: 'center',
+  },
+  // Column widths for consistent alignment
+  regNoColumn: {
+    width: moderateScale(100),
+    textAlign: 'center',
+  },
+  nameColumn: {
+    width: moderateScale(100),
+    textAlign: 'center',
+  },
+  smallColumn: {
+    width: moderateScale(60),
+    textAlign: 'center',
+  },
+  mediumColumn: {
+    width: moderateScale(80),
+    textAlign: 'center',
+  },
+  routeColumn: {
+    width: moderateScale(100),
+    textAlign: 'center',
+  },
+  lastColumn: {
+    borderRightWidth: 0,
+  },
+  pagination: {
+    paddingHorizontal: responsiveSpacing.md,
+    borderTopWidth: 1,
   },
   dialog: {
-    alignSelf: 'center',
+    borderRadius: moderateScale(12),
   },
   dialogTitle: {
     textAlign: 'center',
+    fontWeight: 'bold',
   },
   dialogContent: {
     paddingVertical: responsiveSpacing.sm,
@@ -302,19 +403,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: responsiveSpacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  netRow: {
-    marginTop: responsiveSpacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: '#4CAF50',
   },
   dialogLabel: {
-    fontSize: responsiveFontSize(14),
-    color: '#757575',
+    fontSize: responsiveFontSize(13),
   },
   dialogValue: {
-    fontSize: responsiveFontSize(14),
+    fontSize: responsiveFontSize(13),
     fontWeight: '500',
   },
 });
