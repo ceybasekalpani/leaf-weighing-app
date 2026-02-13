@@ -1,17 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { 
-  Text, 
-  Searchbar,
-  Chip,
-  Surface,
-  useTheme as usePaperTheme,
-  ActivityIndicator
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import {
+    Button,
+    Chip,
+    Dialog,
+    Portal,
+    Searchbar,
+    Surface,
+    Text,
+    useTheme as usePaperTheme
 } from 'react-native-paper';
-import { useLeafData } from '../context/LeafDataContext';
+import ResponsiveContainer from '../../components/ResponsiveContainer';
 import ResponsiveDateHeader from '../../components/ResponsiveDateHeader';
 import ResponsiveTable from '../../components/ResponsiveTable';
-import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
+import { useLeafData } from '../context/LeafDataContext';
+import {
+    getModalWidth,
+    isTablet,
+    responsiveFontSize,
+    responsiveSpacing
+} from '../utils/responsiveUtils';
 
 export default function ViewLeafCollectionPage({ navigation }) {
   const paperTheme = usePaperTheme();
@@ -20,9 +28,19 @@ export default function ViewLeafCollectionPage({ navigation }) {
   const [page, setPage] = useState(0);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [stats, setStats] = useState({ total: 0, netWeight: 0 });
 
-  const [date] = useState(getCurrentDate());
-  const [month] = useState(getCurrentMonth());
+  const isTabletDevice = isTablet();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setLoading(true);
+      setTimeout(() => setLoading(false), 500);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // Combine all collections
   const allCollections = [...leafCollections, ...leafDeductions].sort((a, b) => 
@@ -35,40 +53,100 @@ export default function ViewLeafCollectionPage({ navigation }) {
   );
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      setLoading(true);
-      setTimeout(() => setLoading(false), 500);
-    });
-    return unsubscribe;
-  }, [navigation]);
+    // Calculate stats
+    const total = filteredCollections.length;
+    const net = filteredCollections.reduce((sum, item) => 
+      sum + (parseFloat(item.netWeight) || 0), 0
+    );
+    setStats({ total, netWeight: net });
+  }, [filteredCollections]);
+
+  const handleRowPress = (item) => {
+    setSelectedItem(item);
+    setDialogVisible(true);
+  };
 
   // Table columns configuration
   const columns = [
-    { title: 'Reg No', key: 'regNo', numeric: false },
-    { title: 'Name', key: 'name', numeric: false, render: (row) => `Supplier ${row.regNo?.slice(-4) || '001'}` },
-    { title: 'Bags', key: 'bags', numeric: true },
-    { title: 'Gross', key: 'gross', numeric: true },
-    { title: 'Bag Wt', key: 'totalBagWeight', numeric: true },
-    { title: 'Coarce', key: 'totalCoarce', numeric: true, cellTextStyle: { color: paperTheme.colors.error } },
-    { title: 'Water', key: 'totalWater', numeric: true, cellTextStyle: { color: paperTheme.colors.info } },
-    { title: 'Boiled', key: 'totalBoiled', numeric: true, cellTextStyle: { color: paperTheme.colors.warning } },
-    { title: 'Rejected', key: 'totalRejected', numeric: true, cellTextStyle: { color: paperTheme.colors.error } },
-    { title: 'Route', key: 'route', numeric: false },
-    { title: 'Net', key: 'netWeight', numeric: true, cellTextStyle: { color: paperTheme.colors.success, fontWeight: 'bold' } },
-    { title: 'User', key: 'user', numeric: false, render: () => 'Admin' },
+    { 
+      title: 'Reg No', 
+      key: 'regNo', 
+      width: isTabletDevice ? 100 : 80,
+    },
+    { 
+      title: 'Name', 
+      key: 'name', 
+      render: (row) => `Supplier ${row.regNo?.slice(-4) || '001'}`,
+      width: isTabletDevice ? 120 : 100,
+    },
+    { 
+      title: 'Bags', 
+      key: 'bags', 
+      numeric: true,
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Gross', 
+      key: 'gross', 
+      numeric: true,
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Bag Wt', 
+      key: 'totalBagWeight', 
+      numeric: true,
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Coarce', 
+      key: 'totalCoarce', 
+      numeric: true, 
+      cellTextStyle: { color: paperTheme.colors.error },
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Water', 
+      key: 'totalWater', 
+      numeric: true, 
+      cellTextStyle: { color: paperTheme.colors.info },
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Boiled', 
+      key: 'totalBoiled', 
+      numeric: true, 
+      cellTextStyle: { color: paperTheme.colors.warning },
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Rejected', 
+      key: 'totalRejected', 
+      numeric: true, 
+      cellTextStyle: { color: paperTheme.colors.error },
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'Route', 
+      key: 'route',
+      width: isTabletDevice ? 120 : 100,
+    },
+    { 
+      title: 'Net', 
+      key: 'netWeight', 
+      numeric: true, 
+      cellTextStyle: { color: paperTheme.colors.success, fontWeight: 'bold' },
+      width: isTabletDevice ? 80 : 60,
+    },
+    { 
+      title: 'User', 
+      key: 'user', 
+      render: () => 'Admin',
+      width: isTabletDevice ? 80 : 70,
+    },
   ];
 
-  if (loading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: paperTheme.colors.background }]}>
-        <ActivityIndicator size="large" color={paperTheme.colors.primary} />
-        <Text style={{ marginTop: 16, color: paperTheme.colors.textSecondary }}>Loading collections...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+    <ResponsiveContainer>
       <Surface style={[styles.header, { backgroundColor: paperTheme.colors.surface, elevation: 4 }]}>
         <ResponsiveDateHeader />
         
@@ -86,16 +164,16 @@ export default function ViewLeafCollectionPage({ navigation }) {
           <Chip 
             icon="leaf" 
             style={[styles.chip, { backgroundColor: paperTheme.colors.primary }]}
-            textStyle={{ color: '#FFFFFF' }}
+            textStyle={{ color: '#FFFFFF', fontSize: responsiveFontSize(12) }}
           >
-            Total: {filteredCollections.length}
+            Total: {stats.total}
           </Chip>
           <Chip 
             icon="weight" 
             style={[styles.chip, { backgroundColor: paperTheme.colors.success }]}
-            textStyle={{ color: '#FFFFFF' }}
+            textStyle={{ color: '#FFFFFF', fontSize: responsiveFontSize(12) }}
           >
-            Net: {filteredCollections.reduce((sum, item) => sum + (parseFloat(item.netWeight) || 0), 0).toFixed(2)} kg
+            Net: {stats.netWeight.toFixed(2)} kg
           </Chip>
         </View>
       </Surface>
@@ -107,33 +185,136 @@ export default function ViewLeafCollectionPage({ navigation }) {
         onPageChange={setPage}
         itemsPerPage={itemsPerPage}
         totalItems={filteredCollections.length}
+        loading={loading}
+        onRowPress={handleRowPress}
+        emptyMessage="No leaf collections found"
       />
-    </View>
+
+      {/* Details Dialog */}
+      <Portal>
+        <Dialog 
+          visible={dialogVisible} 
+          onDismiss={() => setDialogVisible(false)}
+          style={[styles.dialog, { width: getModalWidth() }]}
+        >
+          <Dialog.Title style={styles.dialogTitle}>
+            Collection Details
+          </Dialog.Title>
+          <Dialog.Content>
+            {selectedItem && (
+              <View style={styles.dialogContent}>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Registration No:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.regNo}</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Route:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.route}</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Date:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.date} {selectedItem.month}</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Bags:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.bags}</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Gross Weight:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.gross} kg</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Bag Weight:</Text>
+                  <Text style={styles.dialogValue}>{selectedItem.totalBagWeight} kg</Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Coarce:</Text>
+                  <Text style={[styles.dialogValue, { color: paperTheme.colors.error }]}>
+                    {selectedItem.totalCoarce} kg
+                  </Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Water:</Text>
+                  <Text style={[styles.dialogValue, { color: paperTheme.colors.info }]}>
+                    {selectedItem.totalWater} kg
+                  </Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Boiled:</Text>
+                  <Text style={[styles.dialogValue, { color: paperTheme.colors.warning }]}>
+                    {selectedItem.totalBoiled} kg
+                  </Text>
+                </View>
+                <View style={styles.dialogRow}>
+                  <Text style={styles.dialogLabel}>Rejected:</Text>
+                  <Text style={[styles.dialogValue, { color: paperTheme.colors.error }]}>
+                    {selectedItem.totalRejected} kg
+                  </Text>
+                </View>
+                <View style={[styles.dialogRow, styles.netRow]}>
+                  <Text style={styles.dialogLabel}>Net Weight:</Text>
+                  <Text style={[styles.dialogValue, { color: paperTheme.colors.success, fontWeight: 'bold' }]}>
+                    {selectedItem.netWeight} kg
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </ResponsiveContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   header: {
-    padding: 16,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
   searchbar: {
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.md,
     elevation: 2,
   },
   statsContainer: {
     flexDirection: 'row',
-    marginTop: 8,
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.sm,
   },
   chip: {
-    marginRight: 8,
+    marginRight: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.xs,
+  },
+  dialog: {
+    alignSelf: 'center',
+  },
+  dialogTitle: {
+    textAlign: 'center',
+  },
+  dialogContent: {
+    paddingVertical: responsiveSpacing.sm,
+  },
+  dialogRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: responsiveSpacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  netRow: {
+    marginTop: responsiveSpacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: '#4CAF50',
+  },
+  dialogLabel: {
+    fontSize: responsiveFontSize(14),
+    color: '#757575',
+  },
+  dialogValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '500',
   },
 });

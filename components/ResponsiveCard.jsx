@@ -1,17 +1,21 @@
-import React from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import { Card, useTheme } from 'react-native-paper';
-import { isTablet, moderateScale } from '../src/utils/responsiveUtils';
+import { isTablet, moderateScale, responsiveSpacing } from '../src/utils/responsiveUtils';
 
 const { width } = Dimensions.get('window');
 
-const ResponsiveCard = ({ children, style, ...props }) => {
+const ResponsiveCard = ({ 
+  children, 
+  style, 
+  noPadding = false,
+  ...props 
+}) => {
   const theme = useTheme();
   const isTabletDevice = isTablet();
 
   const getCardWidth = () => {
     if (isTabletDevice) {
-      return width * 0.45;
+      return width * 0.9;
     }
     return width - moderateScale(32);
   };
@@ -23,7 +27,8 @@ const ResponsiveCard = ({ children, style, ...props }) => {
         {
           backgroundColor: theme.colors.surface,
           width: getCardWidth(),
-          marginHorizontal: isTabletDevice ? moderateScale(8) : moderateScale(16),
+          marginVertical: responsiveSpacing.sm,
+          padding: noPadding ? 0 : responsiveSpacing.md,
         },
         style,
       ]}

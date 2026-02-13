@@ -41,12 +41,14 @@ export const responsiveFontSize = (size) => {
 
 // Get responsive spacing
 export const responsiveSpacing = {
+  xxs: moderateScale(2),
   xs: moderateScale(4),
   sm: moderateScale(8),
   md: moderateScale(16),
   lg: moderateScale(24),
   xl: moderateScale(32),
   xxl: moderateScale(40),
+  xxxl: moderateScale(48),
 };
 
 // Grid system for responsive layouts
@@ -68,7 +70,25 @@ export const getTableMinWidth = () => {
 // Responsive card width
 export const getCardWidth = () => {
   if (isTablet()) {
-    return SCREEN_WIDTH * 0.9;
+    return SCREEN_WIDTH * 0.45;
   }
   return SCREEN_WIDTH - moderateScale(32);
+};
+
+// Responsive modal width
+export const getModalWidth = () => {
+  if (isTablet()) {
+    return SCREEN_WIDTH * 0.6;
+  }
+  return SCREEN_WIDTH * 0.9;
+};
+
+// Responsive button height
+export const getButtonHeight = () => {
+  return moderateScale(48);
+};
+
+// Responsive input height
+export const getInputHeight = () => {
+  return moderateScale(56);
 };
