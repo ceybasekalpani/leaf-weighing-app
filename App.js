@@ -1,11 +1,9 @@
-import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme, adaptNavigationTheme } from 'react-native-paper';
+import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { LeafDataProvider } from './src/context/LeafDataContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { getThemeColors } from './assets/colors/globalColors';
 
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationLight: MD3LightTheme,

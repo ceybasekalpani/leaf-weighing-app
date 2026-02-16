@@ -1,25 +1,29 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
-    Button,
-    Card,
-    Divider,
-    IconButton,
-    Menu,
-    Text,
-    TextInput,
-    useTheme as usePaperTheme
+  Button,
+  Card,
+  Dialog,
+  Divider,
+  IconButton,
+  Menu,
+  Portal,
+  Text,
+  TextInput,
+  useTheme as usePaperTheme,
 } from 'react-native-paper';
 import {
-    moderateScale,
-    responsiveFontSize,
-    responsiveSpacing
+  moderateScale,
+  responsiveFontSize,
+  responsiveSpacing
 } from '../utils/responsiveUtils';
 
 export default function AddLeafCountPage() {
   const paperTheme = usePaperTheme();
   
   const [date, setDate] = useState('');
+  const [showDateDialog, setShowDateDialog] = useState(false);
+  const [selectedDay, setSelectedDay] = useState('');
   const [month, setMonth] = useState('');
   const [route, setRoute] = useState('');
   const [routeMenuVisible, setRouteMenuVisible] = useState(false);
@@ -40,10 +44,23 @@ export default function AddLeafCountPage() {
     'Watawala',
   ];
 
-  const months = [
-    'Jan-2026', 'Feb-2026', 'Mar-2026', 'Apr-2026', 'May-2026', 'Jun-2026',
-    'Jul-2026', 'Aug-2026', 'Sep-2026', 'Oct-2026', 'Nov-2026', 'Dec-2026'
-  ];
+  // Generate months dynamically (current month and previous months only)
+  const generateMonths = () => {
+    const months = [];
+    const currentDate = new Date();
+    
+    // Generate current month and previous months (no future months)
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear();
+      months.push(`${monthName}-${year}`);
+    }
+    
+    return months;
+  };
+
+  const months = generateMonths();
 
   const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
@@ -69,31 +86,82 @@ export default function AddLeafCountPage() {
     setBestLeaf('');
     setBellowBest('');
     setPoor('');
+    setSelectedDay('');
+  };
+
+  const openDateDialog = () => {
+    setSelectedDay(date);
+    setShowDateDialog(true);
+  };
+
+  const handleDaySelect = (day) => {
+    setSelectedDay(day);
+  };
+
+  const handleDateConfirm = () => {
+    if (selectedDay) {
+      setDate(selectedDay);
+      setShowDateDialog(false);
+    } else {
+      Alert.alert('Select Date', 'Please select a day');
+    }
+  };
+
+  // Generate days for the calendar (1-31)
+  const renderDayButtons = () => {
+    const days = [];
+    for (let i = 1; i <= 31; i++) {
+      days.push(
+        <Button
+          key={i}
+          mode={selectedDay === i.toString() ? "contained" : "outlined"}
+          onPress={() => handleDaySelect(i.toString())}
+          style={styles.dayButton}
+          labelStyle={styles.dayButtonLabel}
+          buttonColor={selectedDay === i.toString() ? paperTheme.colors.primary : undefined}
+          textColor={selectedDay === i.toString() ? 'white' : paperTheme.colors.primary}
+          compact={true}
+        >
+          {i}
+        </Button>
+      );
+    }
+    return days;
   };
 
   // Date Header Component
-  const DateHeader = () => (
-    <View style={styles.dateHeaderContainer}>
-      <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-        <IconButton icon="calendar" size={20} iconColor={paperTheme.colors.primary} />
-        <View>
-          <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Today's Date</Text>
-          <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>
-            {new Date().getDate().toString().padStart(2, '0')}
-          </Text>
+  const DateHeader = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
+    const currentYear = currentDate.getFullYear();
+    
+    return (
+      <View style={styles.dateHeaderContainer}>
+        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+          <IconButton 
+            icon="calendar" 
+            size={20} 
+            iconColor={paperTheme.colors.primary}
+          />
+          <View>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Today's Date</Text>
+            <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>
+              {currentDate.getDate().toString()}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
+          <IconButton icon="calendar-month" size={20} iconColor={paperTheme.colors.secondary} />
+          <View>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Current Month</Text>
+            <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>
+              {`${currentMonth}-${currentYear}`}
+            </Text>
+          </View>
         </View>
       </View>
-      <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-        <IconButton icon="calendar-month" size={20} iconColor={paperTheme.colors.secondary} />
-        <View>
-          <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Current Month</Text>
-          <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>
-            {months[new Date().getMonth()]}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
@@ -108,38 +176,59 @@ export default function AddLeafCountPage() {
             </Text>
           </View>
 
-          {/* Date Input */}
-          <TextInput
-            label="Date"
-            value={date}
-            onChangeText={setDate}
-            mode="outlined"
-            placeholder="DD"
-            keyboardType="numeric"
-            left={<TextInput.Icon icon="calendar" />}
-            style={styles.input}
-            dense={true}
-            maxLength={2}
-            theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-          />
+          {/* Date Input with Dialog */}
+          <TouchableOpacity onPress={openDateDialog}>
+            <View pointerEvents="none">
+              <TextInput
+                label="Date"
+                value={date}
+                mode="outlined"
+                placeholder="Select Date"
+                left={<TextInput.Icon icon="calendar" />}
+                style={styles.input}
+                dense={true}
+                editable={false}
+                theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+              />
+            </View>
+          </TouchableOpacity>
 
-          {/* Month Dropdown */}
+          <Portal>
+            <Dialog visible={showDateDialog} onDismiss={() => setShowDateDialog(false)} style={styles.dateDialog}>
+              <Dialog.Title>Select Day</Dialog.Title>
+              <Dialog.Content style={styles.dialogContent}>
+                <View style={styles.calendarContainer}>
+                  {renderDayButtons()}
+                </View>
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
+                <Button onPress={handleDateConfirm}>OK</Button>
+              </Dialog.Actions>
+            </Dialog>
+          </Portal>
+
+          {/* Month Dropdown - Current and Previous Months Only */}
           <Menu
             visible={monthMenuVisible}
             onDismiss={() => setMonthMenuVisible(false)}
             anchor={
-              <TextInput
-                label="Month"
-                value={month}
-                mode="outlined"
-                placeholder="Select Month"
-                left={<TextInput.Icon icon="calendar-month" />}
-                right={<TextInput.Icon icon="chevron-down" />}
-                style={styles.input}
-                dense={true}
-                onFocus={() => setMonthMenuVisible(true)}
-                theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-              />
+              <TouchableOpacity onPress={() => setMonthMenuVisible(true)}>
+                <View pointerEvents="none">
+                  <TextInput
+                    label="Month"
+                    value={month}
+                    mode="outlined"
+                    placeholder="Select Month"
+                    left={<TextInput.Icon icon="calendar-month" />}
+                    right={<TextInput.Icon icon="chevron-down" />}
+                    style={styles.input}
+                    dense={true}
+                    editable={false}
+                    theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+                  />
+                </View>
+              </TouchableOpacity>
             }
             style={{ backgroundColor: paperTheme.colors.surface }}
           >
@@ -161,18 +250,22 @@ export default function AddLeafCountPage() {
             visible={routeMenuVisible}
             onDismiss={() => setRouteMenuVisible(false)}
             anchor={
-              <TextInput
-                label="Route Name"
-                value={route}
-                mode="outlined"
-                placeholder="Select Route"
-                left={<TextInput.Icon icon="map-marker" />}
-                right={<TextInput.Icon icon="chevron-down" />}
-                style={styles.input}
-                dense={true}
-                onFocus={() => setRouteMenuVisible(true)}
-                theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-              />
+              <TouchableOpacity onPress={() => setRouteMenuVisible(true)}>
+                <View pointerEvents="none">
+                  <TextInput
+                    label="Route Name"
+                    value={route}
+                    mode="outlined"
+                    placeholder="Select Route"
+                    left={<TextInput.Icon icon="map-marker" />}
+                    right={<TextInput.Icon icon="chevron-down" />}
+                    style={styles.input}
+                    dense={true}
+                    editable={false}
+                    theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+                  />
+                </View>
+              </TouchableOpacity>
             }
             style={{ backgroundColor: paperTheme.colors.surface }}
           >
@@ -198,7 +291,7 @@ export default function AddLeafCountPage() {
 
           <View style={styles.percentageRow}>
             <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf</Text>
+              <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf  %</Text>
               <TextInput
                 value={bestLeaf}
                 onChangeText={setBestLeaf}
@@ -213,7 +306,7 @@ export default function AddLeafCountPage() {
             </View>
 
             <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best</Text>
+              <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best  %</Text>
               <TextInput
                 value={bellowBest}
                 onChangeText={setBellowBest}
@@ -228,7 +321,7 @@ export default function AddLeafCountPage() {
             </View>
 
             <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor</Text>
+              <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor  %</Text>
               <TextInput
                 value={poor}
                 onChangeText={setPoor}
@@ -355,5 +448,28 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: responsiveFontSize(14),
     paddingVertical: responsiveSpacing.xs,
+  },
+  dateDialog: {
+    maxHeight: '80%',
+  },
+  dialogContent: {
+    paddingHorizontal: responsiveSpacing.sm,
+  },
+  calendarContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  dayButton: {
+    width: '12%', // Reduced from 18% to 12%
+    marginBottom: responsiveSpacing.xs,
+    marginHorizontal: '0.5%',
+    minWidth: 35, // Add minimum width
+    borderRadius: moderateScale(4),
+  },
+  dayButtonLabel: {
+    fontSize: responsiveFontSize(11),
+    marginHorizontal: 0,
+    paddingHorizontal: 0,
   },
 });
