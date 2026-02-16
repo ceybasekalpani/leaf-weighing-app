@@ -1,23 +1,22 @@
 import { useState } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
-    Button,
-    Card,
-    Divider,
-    IconButton,
-    SegmentedButtons,
-    Text,
-    TextInput,
-    useTheme as usePaperTheme
+  Button,
+  Card,
+  Divider,
+  IconButton,
+  SegmentedButtons,
+  Text,
+  TextInput,
+  useTheme as usePaperTheme
 } from 'react-native-paper';
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
-    getButtonHeight,
-    isTablet,
-    moderateScale,
-    responsiveFontSize,
-    responsiveSpacing
+  isTablet,
+  moderateScale,
+  responsiveFontSize,
+  responsiveSpacing
 } from '../utils/responsiveUtils';
 
 export default function AddLeafDeductionPage({ navigation }) {
@@ -185,16 +184,20 @@ export default function AddLeafDeductionPage({ navigation }) {
             Leaf Type
           </Text>
           <SegmentedButtons
-            value={leafType}
-            onValueChange={setLeafType}
-            buttons={[
-              { value: 'green', label: '🍃 Green' },
-              { value: 'black', label: '🖤 Black' },
-              { value: 'mixed', label: '🔄 Mixed' },
-            ]}
-            style={styles.segmentedButtons}
-            theme={{ colors: { secondaryContainer: paperTheme.colors.primary } }}
-          />
+          value={leafType}
+          onValueChange={setLeafType}
+          buttons={[
+            { value: 'super', label: '⭐ Super Leaf' },
+            { value: 'normal', label: '🌿 Normal Leaf' },
+          ]}
+          style={styles.segmentedButtons}
+          theme={{ 
+            colors: { 
+              secondaryContainer: paperTheme.colors.primary,
+              onSecondaryContainer: paperTheme.colors.background, 
+            } 
+          }}
+        />
 
           {/* Bags and Gross Row */}
           <View style={styles.statsRow}>
