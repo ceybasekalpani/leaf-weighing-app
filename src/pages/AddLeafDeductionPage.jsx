@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react'; // Add useEffect import
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
@@ -24,11 +24,24 @@ export default function AddLeafDeductionPage({ navigation }) {
   const { addLeafDeduction } = useLeafData();
   const isTabletDevice = isTablet();
 
+  // Create refs for each input field
+  const bagWeightRef = useRef(null);
+  const coarceRef = useRef(null);
+  const waterRef = useRef(null);
+  const boiledRef = useRef(null);
+  const rejectedRef = useRef(null);
+
+  // Create timer refs for auto-focus delay
+  const bagWeightTimerRef = useRef(null);
+  const coarceTimerRef = useRef(null);
+  const waterTimerRef = useRef(null);
+  const boiledTimerRef = useRef(null);
+
   const [date] = useState(getCurrentDate());
   const [month] = useState(getCurrentMonth());
   const [regNo, setRegNo] = useState('');
   const [route] = useState('Hapugastenna');
-  const [name] = useState('John Doe'); // This would come from database based on regNo
+  const [name] = useState('Supplier Name'); // This would come from database based on regNo
   const [leafType, setLeafType] = useState('green');
   const [bags] = useState('5');
   const [gross] = useState('250');
@@ -37,6 +50,95 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [water, setWater] = useState('');
   const [boiled, setBoiled] = useState('');
   const [rejected, setRejected] = useState('');
+
+  // Clear all timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(bagWeightTimerRef.current);
+      clearTimeout(coarceTimerRef.current);
+      clearTimeout(waterTimerRef.current);
+      clearTimeout(boiledTimerRef.current);
+    };
+  }, []);
+
+  // Handle auto-focus after a delay (500ms) of no typing
+  const handleBagWeightChange = (text) => {
+    setBagWeight(text);
+    
+    // Clear existing timer
+    if (bagWeightTimerRef.current) {
+      clearTimeout(bagWeightTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    // Only if there's a value and it's not the last character being deleted
+    if (text.length > 0) {
+      bagWeightTimerRef.current = setTimeout(() => {
+        if (coarceRef.current) {
+          coarceRef.current.focus();
+        }
+      }, 500); // 500ms delay
+    }
+  };
+
+  const handleCoarceChange = (text) => {
+    setCoarce(text);
+    
+    // Clear existing timer
+    if (coarceTimerRef.current) {
+      clearTimeout(coarceTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    if (text.length > 0) {
+      coarceTimerRef.current = setTimeout(() => {
+        if (waterRef.current) {
+          waterRef.current.focus();
+        }
+      }, 500);
+    }
+  };
+
+  const handleWaterChange = (text) => {
+    setWater(text);
+    
+    // Clear existing timer
+    if (waterTimerRef.current) {
+      clearTimeout(waterTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    if (text.length > 0) {
+      waterTimerRef.current = setTimeout(() => {
+        if (boiledRef.current) {
+          boiledRef.current.focus();
+        }
+      }, 500);
+    }
+  };
+
+  const handleBoiledChange = (text) => {
+    setBoiled(text);
+    
+    // Clear existing timer
+    if (boiledTimerRef.current) {
+      clearTimeout(boiledTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    if (text.length > 0) {
+      boiledTimerRef.current = setTimeout(() => {
+        if (rejectedRef.current) {
+          rejectedRef.current.focus();
+        }
+      }, 500);
+    }
+  };
+
+  const handleRejectedChange = (text) => {
+    setRejected(text);
+    // No timer for last field, but you could add one to auto-save if needed
+  };
 
   // Calculate totals (without decimals)
   const totalBagWeight = bagWeight ? (parseInt(bags) * parseInt(bagWeight || 0)).toString() : '0';
@@ -57,6 +159,12 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleSave = () => {
+    // Clear any pending timers when saving
+    clearTimeout(bagWeightTimerRef.current);
+    clearTimeout(coarceTimerRef.current);
+    clearTimeout(waterTimerRef.current);
+    clearTimeout(boiledTimerRef.current);
+
     const deductionData = {
       date,
       month,
@@ -85,6 +193,12 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleClear = () => {
+    // Clear any pending timers when clearing
+    clearTimeout(bagWeightTimerRef.current);
+    clearTimeout(coarceTimerRef.current);
+    clearTimeout(waterTimerRef.current);
+    clearTimeout(boiledTimerRef.current);
+
     setRegNo('');
     setBagWeight('');
     setCoarce('');
@@ -92,6 +206,11 @@ export default function AddLeafDeductionPage({ navigation }) {
     setBoiled('');
     setRejected('');
     setLeafType('green');
+    
+    // Optionally focus on first input after clearing
+    if (bagWeightRef.current) {
+      bagWeightRef.current.focus();
+    }
   };
 
   // Enhanced Date Header with Today's date and Current month styling
@@ -159,11 +278,25 @@ export default function AddLeafDeductionPage({ navigation }) {
     );
   };
 
-  // Input Row Component
-  const InputRow = ({ label, value, onChange, icon, totalLabel, totalValue, totalColor, keyboardType = 'default', disabled = false }) => (
+  // Input Row Component with ref support
+  const InputRow = ({ 
+    label, 
+    value, 
+    onChange, 
+    icon, 
+    totalLabel, 
+    totalValue, 
+    totalColor, 
+    keyboardType = 'default', 
+    disabled = false,
+    inputRef = null,
+    onSubmitEditing = null,
+    returnKeyType = 'next'
+  }) => (
     <View style={styles.inputRow}>
       <View style={[styles.inputContainer, { flex: 1.2 }]}>
         <TextInput
+          ref={inputRef}
           label={label}
           value={value}
           onChangeText={onChange}
@@ -174,6 +307,9 @@ export default function AddLeafDeductionPage({ navigation }) {
           style={styles.smallInput}
           dense={true}
           outlineStyle={styles.inputOutline}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={false}
           theme={{ 
             colors: { 
               primary: paperTheme.colors.primary,
@@ -239,32 +375,42 @@ export default function AddLeafDeductionPage({ navigation }) {
                 dense={true}
                 outlineStyle={styles.inputOutline}
                 theme={{ colors: { primary: paperTheme.colors.primary } }}
+                returnKeyType="next"
+                onSubmitEditing={() => bagWeightRef.current?.focus()}
               />
 
               {/* Name Field - Same style as Route */}
-              <TextInput
-                label="Name"
-                value={name}
-                mode="outlined"
-                disabled
-                left={<TextInput.Icon icon="account" color={paperTheme.colors.textSecondary} />}
-                style={[styles.fullWidthInput, styles.disabledInput]}
-                dense={true}
-                outlineStyle={styles.inputOutline}
-                theme={{ colors: { text: paperTheme.colors.text } }}
-              />
+            <TextInput
+  label="Name"
+  value={name}
+  mode="outlined"
+  disabled
+  left={<TextInput.Icon icon="account" color={paperTheme.colors.textSecondary} />}
+  style={[
+    styles.fullWidthInput, 
+    styles.disabledInput, 
+    { backgroundColor: paperTheme.colors.disabled + '20' } // Add dynamic background
+  ]}
+  dense={true}
+  outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
+  theme={{ colors: { text: paperTheme.colors.text } }}
+/>
 
-              {/* Route - Display Only */}
-              <TextInput
-                label="Route"
-                value={route}
-                mode="outlined"
-                disabled
-                left={<TextInput.Icon icon="map-marker" color={paperTheme.colors.textSecondary} />}
-                style={[styles.fullWidthInput, styles.disabledInput]}
-                dense={true}
-                outlineStyle={styles.inputOutline}
-              />
+{/* Route - Display Only */}
+<TextInput
+  label="Route"
+  value={route}
+  mode="outlined"
+  disabled
+  left={<TextInput.Icon icon="map-marker" color={paperTheme.colors.textSecondary} />}
+  style={[
+    styles.fullWidthInput, 
+    styles.disabledInput,
+    { backgroundColor: paperTheme.colors.disabled + '20' } // Add dynamic background
+  ]}
+  dense={true}
+  outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
+/>
             </View>
 
             {/* Leaf Type Section */}
@@ -331,56 +477,84 @@ export default function AddLeafDeductionPage({ navigation }) {
               <InputRow
                 label="Bag Weight"
                 value={bagWeight}
-                onChange={setBagWeight}
+                onChange={handleBagWeightChange}
                 icon="weight-kilogram"
                 totalLabel="Total Bag Weight"
                 totalValue={totalBagWeight}
                 totalColor={paperTheme.colors.primary}
                 keyboardType="numeric"
+                inputRef={bagWeightRef}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  // Clear timer and manually move to next field when Next button is pressed
+                  clearTimeout(bagWeightTimerRef.current);
+                  coarceRef.current?.focus();
+                }}
               />
 
               <InputRow
                 label="Coarce"
                 value={coarce}
-                onChange={setCoarce}
+                onChange={handleCoarceChange}
                 icon="leaf-off"
                 totalLabel="Total Coarce"
                 totalValue={totalCoarce}
                 totalColor={paperTheme.colors.error}
                 keyboardType="numeric"
+                inputRef={coarceRef}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  clearTimeout(coarceTimerRef.current);
+                  waterRef.current?.focus();
+                }}
               />
 
               <InputRow
                 label="Water"
                 value={water}
-                onChange={setWater}
+                onChange={handleWaterChange}
                 icon="water"
                 totalLabel="Total Water"
                 totalValue={totalWater}
                 totalColor={paperTheme.colors.info}
                 keyboardType="numeric"
+                inputRef={waterRef}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  clearTimeout(waterTimerRef.current);
+                  boiledRef.current?.focus();
+                }}
               />
 
               <InputRow
                 label="Boiled"
                 value={boiled}
-                onChange={setBoiled}
+                onChange={handleBoiledChange}
                 icon="fire"
                 totalLabel="Total Boiled"
                 totalValue={totalBoiled}
                 totalColor={paperTheme.colors.warning}
                 keyboardType="numeric"
+                inputRef={boiledRef}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  clearTimeout(boiledTimerRef.current);
+                  rejectedRef.current?.focus();
+                }}
               />
 
               <InputRow
                 label="Rejected"
                 value={rejected}
-                onChange={setRejected}
+                onChange={handleRejectedChange}
                 icon="close-circle"
                 totalLabel="Total Rejected"
                 totalValue={totalRejected}
                 totalColor={paperTheme.colors.error}
                 keyboardType="numeric"
+                inputRef={rejectedRef}
+                returnKeyType="done"
+                onSubmitEditing={handleSave} // Save when done is pressed on last field
               />
             </View>
 
@@ -434,6 +608,8 @@ export default function AddLeafDeductionPage({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   container: {

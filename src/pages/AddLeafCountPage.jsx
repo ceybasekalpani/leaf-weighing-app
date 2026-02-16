@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react'; // Add useRef and useEffect
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   Button,
@@ -20,6 +20,15 @@ import {
 
 export default function AddLeafCountPage() {
   const paperTheme = usePaperTheme();
+  
+  // Create refs for each input field
+  const bestLeafRef = useRef(null);
+  const bellowBestRef = useRef(null);
+  const poorRef = useRef(null);
+
+  // Create timer refs for auto-focus delay
+  const bestLeafTimerRef = useRef(null);
+  const bellowBestTimerRef = useRef(null);
   
   const [date, setDate] = useState('');
   const [showDateDialog, setShowDateDialog] = useState(false);
@@ -44,6 +53,14 @@ export default function AddLeafCountPage() {
     'Watawala',
   ];
 
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(bestLeafTimerRef.current);
+      clearTimeout(bellowBestTimerRef.current);
+    };
+  }, []);
+
   // Generate months dynamically (current month and previous months only)
   const generateMonths = () => {
     const months = [];
@@ -64,7 +81,55 @@ export default function AddLeafCountPage() {
 
   const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
+  // Handle auto-focus with delay for Best Leaf
+  const handleBestLeafChange = (text) => {
+    setBestLeaf(text);
+    
+    // Clear existing timer
+    if (bestLeafTimerRef.current) {
+      clearTimeout(bestLeafTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    if (text.length > 0) {
+      bestLeafTimerRef.current = setTimeout(() => {
+        if (bellowBestRef.current) {
+          bellowBestRef.current.focus();
+        }
+      }, 500); // 500ms delay
+    }
+  };
+
+  // Handle auto-focus with delay for Below Best
+  const handleBellowBestChange = (text) => {
+    setBellowBest(text);
+    
+    // Clear existing timer
+    if (bellowBestTimerRef.current) {
+      clearTimeout(bellowBestTimerRef.current);
+    }
+    
+    // Set new timer to move to next field after 500ms of no typing
+    if (text.length > 0) {
+      bellowBestTimerRef.current = setTimeout(() => {
+        if (poorRef.current) {
+          poorRef.current.focus();
+        }
+      }, 500);
+    }
+  };
+
+  // Handle Poor field change (no auto-focus as it's the last field)
+  const handlePoorChange = (text) => {
+    setPoor(text);
+    // You could add auto-save here if needed
+  };
+
   const handleSave = () => {
+    // Clear any pending timers when saving
+    clearTimeout(bestLeafTimerRef.current);
+    clearTimeout(bellowBestTimerRef.current);
+
     const leafCount = {
       date,
       month,
@@ -80,6 +145,10 @@ export default function AddLeafCountPage() {
   };
 
   const handleClear = () => {
+    // Clear any pending timers when clearing
+    clearTimeout(bestLeafTimerRef.current);
+    clearTimeout(bellowBestTimerRef.current);
+
     setDate('');
     setMonth('');
     setRoute('');
@@ -87,6 +156,11 @@ export default function AddLeafCountPage() {
     setBellowBest('');
     setPoor('');
     setSelectedDay('');
+    
+    // Optionally focus on first input after clearing
+    if (bestLeafRef.current) {
+      bestLeafRef.current.focus();
+    }
   };
 
   const openDateDialog = () => {
@@ -376,14 +450,20 @@ export default function AddLeafCountPage() {
               <View style={styles.percentageContainer}>
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf</Text>
                 <TextInput
+                  ref={bestLeafRef}
                   value={bestLeaf}
-                  onChangeText={setBestLeaf}
+                  onChangeText={handleBestLeafChange}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
                   placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    clearTimeout(bestLeafTimerRef.current);
+                    bellowBestRef.current?.focus();
+                  }}
                   theme={{ colors: { primary: paperTheme.colors.success, text: paperTheme.colors.text } }}
                 />
               </View>
@@ -391,14 +471,20 @@ export default function AddLeafCountPage() {
               <View style={styles.percentageContainer}>
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best</Text>
                 <TextInput
+                  ref={bellowBestRef}
                   value={bellowBest}
-                  onChangeText={setBellowBest}
+                  onChangeText={handleBellowBestChange}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
                   placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    clearTimeout(bellowBestTimerRef.current);
+                    poorRef.current?.focus();
+                  }}
                   theme={{ colors: { primary: paperTheme.colors.warning, text: paperTheme.colors.text } }}
                 />
               </View>
@@ -406,14 +492,17 @@ export default function AddLeafCountPage() {
               <View style={styles.percentageContainer}>
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor</Text>
                 <TextInput
+                  ref={poorRef}
                   value={poor}
-                  onChangeText={setPoor}
+                  onChangeText={handlePoorChange}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
                   placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSave} // Optional: Save when done is pressed
                   theme={{ colors: { primary: paperTheme.colors.error, text: paperTheme.colors.text } }}
                 />
               </View>
@@ -611,7 +700,7 @@ const styles = StyleSheet.create({
     height: moderateScale(44),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: moderateScale(8), // Changed from 22 to 8 for square with slight rounding
+    borderRadius: moderateScale(8),
     borderWidth: 1.5,
     marginHorizontal: 2,
     marginVertical: 2,
