@@ -1,11 +1,10 @@
-import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BottomNavigation, useTheme as usePaperTheme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import ThemeToggle from '../../components/ThemeToggle';
+import AddLeafCountPage from '../pages/AddLeafCountPage';
 import AddLeafDeductionPage from '../pages/AddLeafDeductionPage';
 import ViewLeafCollectionPage from '../pages/ViewLeafCollectionPage';
-import AddLeafCountPage from '../pages/AddLeafCountPage';
-import ThemeToggle from '../../components/ThemeToggle';
 
 const Tab = createBottomTabNavigator();
 

@@ -107,55 +107,104 @@ export default function AddLeafCountPage() {
     }
   };
 
-  // Generate days for the calendar (1-31)
+  // Generate days for the calendar (1-31) with square styling
   const renderDayButtons = () => {
     const days = [];
+    const today = new Date().getDate();
+    
     for (let i = 1; i <= 31; i++) {
+      const isSelected = selectedDay === i.toString();
+      const isToday = i === today;
+      
       days.push(
-        <Button
+        <TouchableOpacity
           key={i}
-          mode={selectedDay === i.toString() ? "contained" : "outlined"}
           onPress={() => handleDaySelect(i.toString())}
-          style={styles.dayButton}
-          labelStyle={styles.dayButtonLabel}
-          buttonColor={selectedDay === i.toString() ? paperTheme.colors.primary : undefined}
-          textColor={selectedDay === i.toString() ? 'white' : paperTheme.colors.primary}
-          compact={true}
+          style={[
+            styles.dayButton,
+            isSelected && styles.selectedDayButton,
+            isToday && !isSelected && styles.todayButton,
+            { 
+              backgroundColor: isSelected 
+                ? paperTheme.colors.primary 
+                : isToday && !isSelected 
+                  ? paperTheme.colors.primary + '20' // 20% opacity
+                  : 'transparent',
+              borderColor: isToday && !isSelected 
+                ? paperTheme.colors.primary 
+                : '#E0E0E0',
+            }
+          ]}
         >
-          {i}
-        </Button>
+          <Text 
+            style={[
+              styles.dayButtonText,
+              isSelected && styles.selectedDayButtonText,
+              isToday && !isSelected && styles.todayButtonText,
+              { color: isSelected ? 'white' : isToday && !isSelected ? paperTheme.colors.primary : paperTheme.colors.text }
+            ]}
+          >
+            {i}
+          </Text>
+          {isToday && !isSelected && (
+            <View style={[styles.todayDot, { backgroundColor: paperTheme.colors.primary }]} />
+          )}
+        </TouchableOpacity>
       );
     }
     return days;
   };
 
-  // Date Header Component
+  // Date Header Component with enhanced styling
   const DateHeader = () => {
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
     const currentYear = currentDate.getFullYear();
+    const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
     
     return (
       <View style={styles.dateHeaderContainer}>
-        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-          <IconButton 
-            icon="calendar" 
-            size={20} 
-            iconColor={paperTheme.colors.primary}
-          />
-          <View>
+        <View style={[styles.dateBox, { 
+          backgroundColor: paperTheme.colors.surface, 
+          borderColor: paperTheme.colors.primary + '30',
+          borderWidth: 1.5,
+        }]}>
+          <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.primary + '15' }]}>
+            <IconButton 
+              icon="calendar" 
+              size={22} 
+              iconColor={paperTheme.colors.primary}
+            />
+          </View>
+          <View style={styles.dateTextContainer}>
             <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Today's Date</Text>
-            <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>
-              {currentDate.getDate().toString()}
-            </Text>
+            <View style={styles.dateValueRow}>
+              <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>
+                {currentDate.getDate()}
+              </Text>
+              <Text style={[styles.dateDayName, { color: paperTheme.colors.textSecondary }]}>
+                {dayName}
+              </Text>
+            </View>
           </View>
         </View>
-        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-          <IconButton icon="calendar-month" size={20} iconColor={paperTheme.colors.secondary} />
-          <View>
+        
+        <View style={[styles.dateBox, { 
+          backgroundColor: paperTheme.colors.surface, 
+          borderColor: paperTheme.colors.secondary + '30',
+          borderWidth: 1.5,
+        }]}>
+          <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.secondary + '15' }]}>
+            <IconButton 
+              icon="calendar-month" 
+              size={22} 
+              iconColor={paperTheme.colors.secondary} 
+            />
+          </View>
+          <View style={styles.dateTextContainer}>
             <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Current Month</Text>
             <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>
-              {`${currentMonth}-${currentYear}`}
+              {`${currentMonth} ${currentYear}`}
             </Text>
           </View>
         </View>
@@ -180,14 +229,16 @@ export default function AddLeafCountPage() {
         <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
           <Card.Content>
             <View style={styles.headerContainer}>
-              <IconButton icon="leaf-circle" size={28} iconColor={paperTheme.colors.primary} />
+              <View style={[styles.headerIconContainer, { backgroundColor: paperTheme.colors.primary + '15' }]}>
+                <IconButton icon="leaf-circle" size={28} iconColor={paperTheme.colors.primary} />
+              </View>
               <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
                 Add Leaf Count
               </Text>
             </View>
 
             {/* Date Input with Dialog */}
-            <TouchableOpacity onPress={openDateDialog}>
+            <TouchableOpacity onPress={openDateDialog} activeOpacity={0.7}>
               <View pointerEvents="none">
                 <TextInput
                   label="Date"
@@ -204,16 +255,38 @@ export default function AddLeafCountPage() {
             </TouchableOpacity>
 
             <Portal>
-              <Dialog visible={showDateDialog} onDismiss={() => setShowDateDialog(false)} style={styles.dateDialog}>
-                <Dialog.Title>Select Day</Dialog.Title>
+              <Dialog 
+                visible={showDateDialog} 
+                onDismiss={() => setShowDateDialog(false)} 
+                style={[styles.dateDialog, { backgroundColor: paperTheme.colors.surface }]}
+              >
+                <Dialog.Title style={styles.dialogTitle}>
+                  <IconButton icon="calendar" size={24} iconColor={paperTheme.colors.primary} />
+                  <Text style={styles.dialogTitleText}>Select Date</Text>
+                </Dialog.Title>
                 <Dialog.Content style={styles.dialogContent}>
-                  <View style={styles.calendarContainer}>
+                  {/* Simplified - only dates in square format */}
+                  <View style={styles.simpleCalendarContainer}>
                     {renderDayButtons()}
                   </View>
                 </Dialog.Content>
-                <Dialog.Actions>
-                  <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
-                  <Button onPress={handleDateConfirm}>OK</Button>
+                <Dialog.Actions style={styles.dialogActions}>
+                  <Button 
+                    onPress={() => setShowDateDialog(false)}
+                    textColor={paperTheme.colors.error}
+                    style={styles.dialogButton}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onPress={handleDateConfirm}
+                    mode="contained"
+                    buttonColor={paperTheme.colors.primary}
+                    style={styles.dialogButton}
+                    labelStyle={styles.dialogButtonLabel}
+                  >
+                    OK
+                  </Button>
                 </Dialog.Actions>
               </Dialog>
             </Portal>
@@ -223,7 +296,7 @@ export default function AddLeafCountPage() {
               visible={monthMenuVisible}
               onDismiss={() => setMonthMenuVisible(false)}
               anchor={
-                <TouchableOpacity onPress={() => setMonthMenuVisible(true)}>
+                <TouchableOpacity onPress={() => setMonthMenuVisible(true)} activeOpacity={0.7}>
                   <View pointerEvents="none">
                     <TextInput
                       label="Month"
@@ -260,7 +333,7 @@ export default function AddLeafCountPage() {
               visible={routeMenuVisible}
               onDismiss={() => setRouteMenuVisible(false)}
               anchor={
-                <TouchableOpacity onPress={() => setRouteMenuVisible(true)}>
+                <TouchableOpacity onPress={() => setRouteMenuVisible(true)} activeOpacity={0.7}>
                   <View pointerEvents="none">
                     <TextInput
                       label="Route Name"
@@ -301,14 +374,14 @@ export default function AddLeafCountPage() {
 
             <View style={styles.percentageRow}>
               <View style={styles.percentageContainer}>
-                <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf  %</Text>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf</Text>
                 <TextInput
                   value={bestLeaf}
                   onChangeText={setBestLeaf}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  right={<TextInput.Affix text="%" />}
+                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   theme={{ colors: { primary: paperTheme.colors.success, text: paperTheme.colors.text } }}
@@ -316,14 +389,14 @@ export default function AddLeafCountPage() {
               </View>
 
               <View style={styles.percentageContainer}>
-                <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best  %</Text>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best</Text>
                 <TextInput
                   value={bellowBest}
                   onChangeText={setBellowBest}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  right={<TextInput.Affix text="%" />}
+                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   theme={{ colors: { primary: paperTheme.colors.warning, text: paperTheme.colors.text } }}
@@ -331,14 +404,14 @@ export default function AddLeafCountPage() {
               </View>
 
               <View style={styles.percentageContainer}>
-                <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor  %</Text>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor</Text>
                 <TextInput
                   value={poor}
                   onChangeText={setPoor}
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  right={<TextInput.Affix text="%" />}
+                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   theme={{ colors: { primary: paperTheme.colors.error, text: paperTheme.colors.text } }}
@@ -393,48 +466,79 @@ const styles = StyleSheet.create({
   dateHeaderContainer: {
     flexDirection: 'row',
     padding: responsiveSpacing.md,
-    gap: responsiveSpacing.sm,
+    gap: responsiveSpacing.md,
   },
   dateBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     padding: responsiveSpacing.sm,
-    borderRadius: moderateScale(8),
-    borderWidth: 1,
-    elevation: 2,
+    borderRadius: moderateScale(12),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dateIconContainer: {
+    borderRadius: moderateScale(10),
+    marginRight: responsiveSpacing.xs,
+  },
+  dateTextContainer: {
+    flex: 1,
   },
   dateLabel: {
-    fontSize: responsiveFontSize(11),
+    fontSize: responsiveFontSize(10),
+    marginBottom: 2,
+  },
+  dateValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: responsiveSpacing.xs,
   },
   dateValue: {
-    fontSize: responsiveFontSize(14),
+    fontSize: responsiveFontSize(16),
     fontWeight: 'bold',
+  },
+  dateDayName: {
+    fontSize: responsiveFontSize(12),
+    fontWeight: '500',
   },
   card: {
     margin: responsiveSpacing.md,
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(16),
     elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: responsiveSpacing.lg,
   },
+  headerIconContainer: {
+    borderRadius: moderateScale(12),
+    marginRight: responsiveSpacing.sm,
+  },
   title: {
     fontWeight: 'bold',
-    marginLeft: responsiveSpacing.sm,
+    fontSize: responsiveFontSize(20),
   },
   input: {
     marginBottom: responsiveSpacing.md,
     height: moderateScale(48),
+    backgroundColor: 'transparent',
   },
   divider: {
     marginVertical: responsiveSpacing.md,
+    height: 1,
   },
   sectionTitle: {
     marginBottom: responsiveSpacing.md,
     fontWeight: 'bold',
+    fontSize: responsiveFontSize(18),
   },
   percentageRow: {
     flexDirection: 'row',
@@ -446,11 +550,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   percentageLabel: {
-    fontSize: responsiveFontSize(12),
+    fontSize: responsiveFontSize(18),
     marginBottom: responsiveSpacing.xs,
+    marginTop: responsiveSpacing.sm,
+    fontWeight: '600',
   },
   percentageInput: {
-    height: moderateScale(44),
+    height: moderateScale(48),
+    fontSize: responsiveFontSize(15),
+    backgroundColor: 'transparent',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -468,28 +576,87 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: responsiveFontSize(14),
     paddingVertical: responsiveSpacing.xs,
+    fontWeight: '600',
   },
   dateDialog: {
     maxHeight: '80%',
+    borderRadius: moderateScale(20),
+    elevation: 5,
+  },
+  dialogTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: responsiveSpacing.md,
+  },
+  dialogTitleText: {
+    fontSize: responsiveFontSize(20),
+    fontWeight: 'bold',
+    marginLeft: responsiveSpacing.xs,
   },
   dialogContent: {
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
   },
-  calendarContainer: {
+  simpleCalendarContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'left',
+    alignItems: 'center',
+    gap: 8,
+    padding: responsiveSpacing.md,
   },
   dayButton: {
-    width: '12%', // Reduced from 18% to 12%
-    marginBottom: responsiveSpacing.xs,
-    marginHorizontal: '0.5%',
-    minWidth: 35, // Add minimum width
-    borderRadius: moderateScale(4),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: moderateScale(8), // Changed from 22 to 8 for square with slight rounding
+    borderWidth: 1.5,
+    marginHorizontal: 2,
+    marginVertical: 2,
+    position: 'relative',
   },
-  dayButtonLabel: {
-    fontSize: responsiveFontSize(11),
-    marginHorizontal: 0,
-    paddingHorizontal: 0,
+  selectedDayButton: {
+    borderWidth: 0,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    transform: [{ scale: 1.05 }],
+  },
+  todayButton: {
+    borderWidth: 1.5,
+  },
+  dayButtonText: {
+    fontSize: responsiveFontSize(15),
+    fontWeight: '500',
+  },
+  selectedDayButtonText: {
+    fontWeight: '700',
+  },
+  todayButtonText: {
+    fontWeight: '600',
+  },
+  todayDot: {
+    position: 'absolute',
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  dialogActions: {
+    paddingHorizontal: responsiveSpacing.md,
+    paddingBottom: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  dialogButton: {
+    borderRadius: moderateScale(20),
+    paddingHorizontal: responsiveSpacing.md,
+  },
+  dialogButtonLabel: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '600',
   },
 });

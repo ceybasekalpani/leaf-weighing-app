@@ -35,25 +35,67 @@ export default function ViewLeafCollectionPage({ navigation }) {
 
   const isTabletDevice = isTablet();
 
-  // Date Header
+  // Enhanced Date Header with Today's date and Current month styling
   const DateHeader = () => {
     const date = getCurrentDate();
     const month = getCurrentMonth();
+    const currentDate = new Date();
+    const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
     
     return (
       <View style={styles.dateHeaderContainer}>
-        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-          <IconButton icon="calendar" size={18} iconColor={paperTheme.colors.primary} />
-          <View>
-            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Date</Text>
-            <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>{date}</Text>
+        <View style={[styles.dateBox, { 
+          backgroundColor: paperTheme.colors.surface, 
+          borderColor: paperTheme.colors.primary + '30',
+          borderWidth: 1.5,
+          elevation: 3,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }]}>
+          <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.primary + '15' }]}>
+            <IconButton 
+              icon="calendar" 
+              size={22} 
+              iconColor={paperTheme.colors.primary}
+            />
+          </View>
+          <View style={styles.dateTextContainer}>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Today's Date</Text>
+            <View style={styles.dateValueRow}>
+              <Text style={[styles.dateValue, { color: paperTheme.colors.primary }]}>
+                {currentDate.getDate()}
+              </Text>
+              <Text style={[styles.dateDayName, { color: paperTheme.colors.textSecondary }]}>
+                {dayName}
+              </Text>
+            </View>
           </View>
         </View>
-        <View style={[styles.dateBox, { backgroundColor: paperTheme.colors.surface, borderColor: paperTheme.colors.border }]}>
-          <IconButton icon="calendar-month" size={18} iconColor={paperTheme.colors.secondary} />
-          <View>
-            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Month</Text>
-            <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>{month}</Text>
+        
+        <View style={[styles.dateBox, { 
+          backgroundColor: paperTheme.colors.surface, 
+          borderColor: paperTheme.colors.secondary + '30',
+          borderWidth: 1.5,
+          elevation: 3,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }]}>
+          <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.secondary + '15' }]}>
+            <IconButton 
+              icon="calendar-month" 
+              size={22} 
+              iconColor={paperTheme.colors.secondary} 
+            />
+          </View>
+          <View style={styles.dateTextContainer}>
+            <Text style={[styles.dateLabel, { color: paperTheme.colors.textSecondary }]}>Current Month</Text>
+            <Text style={[styles.dateValue, { color: paperTheme.colors.secondary }]}>
+              {month}
+            </Text>
           </View>
         </View>
       </View>
@@ -122,14 +164,14 @@ export default function ViewLeafCollectionPage({ navigation }) {
           <Chip 
             icon="leaf" 
             style={[styles.chip, { backgroundColor: paperTheme.colors.primary + '15' }]}
-            textStyle={{ color: paperTheme.colors.primary, fontSize: responsiveFontSize(12), fontWeight: '600' }}
+            textStyle={{ color: paperTheme.colors.primary, fontSize: responsiveFontSize(16), fontWeight: '700' }}
           >
             Total: {stats.total}
           </Chip>
           <Chip 
             icon="weight" 
             style={[styles.chip, { backgroundColor: paperTheme.colors.success + '15' }]}
-            textStyle={{ color: paperTheme.colors.success, fontSize: responsiveFontSize(12), fontWeight: '600' }}
+            textStyle={{ color: paperTheme.colors.success, fontSize: responsiveFontSize(16), fontWeight: '700' }}
           >
             Net: {stats.netWeight.toFixed(2)} kg
           </Chip>
@@ -290,23 +332,39 @@ const styles = StyleSheet.create({
   },
   dateHeaderContainer: {
     flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.sm,
+    gap: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.md,
   },
   dateBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: responsiveSpacing.xs,
-    borderRadius: moderateScale(8),
-    borderWidth: 1,
+    padding: responsiveSpacing.sm,
+    borderRadius: moderateScale(12),
+  },
+  dateIconContainer: {
+    borderRadius: moderateScale(10),
+    marginRight: responsiveSpacing.xs,
+  },
+  dateTextContainer: {
+    flex: 1,
   },
   dateLabel: {
-    fontSize: responsiveFontSize(11),
+    fontSize: responsiveFontSize(10),
+    marginBottom: 2,
+  },
+  dateValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: responsiveSpacing.xs,
   },
   dateValue: {
-    fontSize: responsiveFontSize(14),
+    fontSize: responsiveFontSize(16),
     fontWeight: 'bold',
+  },
+  dateDayName: {
+    fontSize: responsiveFontSize(12),
+    fontWeight: '500',
   },
   searchbar: {
     marginVertical: responsiveSpacing.sm,
@@ -315,9 +373,10 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
+    marginTop: responsiveSpacing.xs,
   },
   chip: {
-    height: moderateScale(32),
+    height: moderateScale(36),
   },
   tableWrapper: {
     flex: 1,
