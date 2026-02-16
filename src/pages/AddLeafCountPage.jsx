@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   Button,
   Card,
@@ -164,211 +164,231 @@ export default function AddLeafCountPage() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
-      <DateHeader />
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <ScrollView 
+        style={[styles.container, { backgroundColor: paperTheme.colors.background }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        <DateHeader />
 
-      <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
-        <Card.Content>
-          <View style={styles.headerContainer}>
-            <IconButton icon="leaf-circle" size={28} iconColor={paperTheme.colors.primary} />
-            <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
-              Add Leaf Count
+        <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
+          <Card.Content>
+            <View style={styles.headerContainer}>
+              <IconButton icon="leaf-circle" size={28} iconColor={paperTheme.colors.primary} />
+              <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
+                Add Leaf Count
+              </Text>
+            </View>
+
+            {/* Date Input with Dialog */}
+            <TouchableOpacity onPress={openDateDialog}>
+              <View pointerEvents="none">
+                <TextInput
+                  label="Date"
+                  value={date}
+                  mode="outlined"
+                  placeholder="Select Date"
+                  left={<TextInput.Icon icon="calendar" />}
+                  style={styles.input}
+                  dense={true}
+                  editable={false}
+                  theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <Portal>
+              <Dialog visible={showDateDialog} onDismiss={() => setShowDateDialog(false)} style={styles.dateDialog}>
+                <Dialog.Title>Select Day</Dialog.Title>
+                <Dialog.Content style={styles.dialogContent}>
+                  <View style={styles.calendarContainer}>
+                    {renderDayButtons()}
+                  </View>
+                </Dialog.Content>
+                <Dialog.Actions>
+                  <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
+                  <Button onPress={handleDateConfirm}>OK</Button>
+                </Dialog.Actions>
+              </Dialog>
+            </Portal>
+
+            {/* Month Dropdown - Current and Previous Months Only */}
+            <Menu
+              visible={monthMenuVisible}
+              onDismiss={() => setMonthMenuVisible(false)}
+              anchor={
+                <TouchableOpacity onPress={() => setMonthMenuVisible(true)}>
+                  <View pointerEvents="none">
+                    <TextInput
+                      label="Month"
+                      value={month}
+                      mode="outlined"
+                      placeholder="Select Month"
+                      left={<TextInput.Icon icon="calendar-month" />}
+                      right={<TextInput.Icon icon="chevron-down" />}
+                      style={styles.input}
+                      dense={true}
+                      editable={false}
+                      theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+                    />
+                  </View>
+                </TouchableOpacity>
+              }
+              style={{ backgroundColor: paperTheme.colors.surface }}
+            >
+              {months.map((m) => (
+                <Menu.Item
+                  key={m}
+                  onPress={() => {
+                    setMonth(m);
+                    setMonthMenuVisible(false);
+                  }}
+                  title={m}
+                  titleStyle={{ color: paperTheme.colors.text }}
+                />
+              ))}
+            </Menu>
+
+            {/* Route Dropdown */}
+            <Menu
+              visible={routeMenuVisible}
+              onDismiss={() => setRouteMenuVisible(false)}
+              anchor={
+                <TouchableOpacity onPress={() => setRouteMenuVisible(true)}>
+                  <View pointerEvents="none">
+                    <TextInput
+                      label="Route Name"
+                      value={route}
+                      mode="outlined"
+                      placeholder="Select Route"
+                      left={<TextInput.Icon icon="map-marker" />}
+                      right={<TextInput.Icon icon="chevron-down" />}
+                      style={styles.input}
+                      dense={true}
+                      editable={false}
+                      theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
+                    />
+                  </View>
+                </TouchableOpacity>
+              }
+              style={{ backgroundColor: paperTheme.colors.surface }}
+            >
+              {routes.map((r) => (
+                <Menu.Item
+                  key={r}
+                  onPress={() => {
+                    setRoute(r);
+                    setRouteMenuVisible(false);
+                  }}
+                  title={r}
+                  titleStyle={{ color: paperTheme.colors.text }}
+                />
+              ))}
+            </Menu>
+
+            <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
+
+            {/* Quality Distribution */}
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: paperTheme.colors.primary }]}>
+              Quality Distribution
             </Text>
-          </View>
 
-          {/* Date Input with Dialog */}
-          <TouchableOpacity onPress={openDateDialog}>
-            <View pointerEvents="none">
-              <TextInput
-                label="Date"
-                value={date}
-                mode="outlined"
-                placeholder="Select Date"
-                left={<TextInput.Icon icon="calendar" />}
-                style={styles.input}
-                dense={true}
-                editable={false}
-                theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-              />
-            </View>
-          </TouchableOpacity>
+            <View style={styles.percentageRow}>
+              <View style={styles.percentageContainer}>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf  %</Text>
+                <TextInput
+                  value={bestLeaf}
+                  onChangeText={setBestLeaf}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  placeholder="0"
+                  right={<TextInput.Affix text="%" />}
+                  style={styles.percentageInput}
+                  dense={true}
+                  theme={{ colors: { primary: paperTheme.colors.success, text: paperTheme.colors.text } }}
+                />
+              </View>
 
-          <Portal>
-            <Dialog visible={showDateDialog} onDismiss={() => setShowDateDialog(false)} style={styles.dateDialog}>
-              <Dialog.Title>Select Day</Dialog.Title>
-              <Dialog.Content style={styles.dialogContent}>
-                <View style={styles.calendarContainer}>
-                  {renderDayButtons()}
-                </View>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
-                <Button onPress={handleDateConfirm}>OK</Button>
-              </Dialog.Actions>
-            </Dialog>
-          </Portal>
+              <View style={styles.percentageContainer}>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best  %</Text>
+                <TextInput
+                  value={bellowBest}
+                  onChangeText={setBellowBest}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  placeholder="0"
+                  right={<TextInput.Affix text="%" />}
+                  style={styles.percentageInput}
+                  dense={true}
+                  theme={{ colors: { primary: paperTheme.colors.warning, text: paperTheme.colors.text } }}
+                />
+              </View>
 
-          {/* Month Dropdown - Current and Previous Months Only */}
-          <Menu
-            visible={monthMenuVisible}
-            onDismiss={() => setMonthMenuVisible(false)}
-            anchor={
-              <TouchableOpacity onPress={() => setMonthMenuVisible(true)}>
-                <View pointerEvents="none">
-                  <TextInput
-                    label="Month"
-                    value={month}
-                    mode="outlined"
-                    placeholder="Select Month"
-                    left={<TextInput.Icon icon="calendar-month" />}
-                    right={<TextInput.Icon icon="chevron-down" />}
-                    style={styles.input}
-                    dense={true}
-                    editable={false}
-                    theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-                  />
-                </View>
-              </TouchableOpacity>
-            }
-            style={{ backgroundColor: paperTheme.colors.surface }}
-          >
-            {months.map((m) => (
-              <Menu.Item
-                key={m}
-                onPress={() => {
-                  setMonth(m);
-                  setMonthMenuVisible(false);
-                }}
-                title={m}
-                titleStyle={{ color: paperTheme.colors.text }}
-              />
-            ))}
-          </Menu>
-
-          {/* Route Dropdown */}
-          <Menu
-            visible={routeMenuVisible}
-            onDismiss={() => setRouteMenuVisible(false)}
-            anchor={
-              <TouchableOpacity onPress={() => setRouteMenuVisible(true)}>
-                <View pointerEvents="none">
-                  <TextInput
-                    label="Route Name"
-                    value={route}
-                    mode="outlined"
-                    placeholder="Select Route"
-                    left={<TextInput.Icon icon="map-marker" />}
-                    right={<TextInput.Icon icon="chevron-down" />}
-                    style={styles.input}
-                    dense={true}
-                    editable={false}
-                    theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
-                  />
-                </View>
-              </TouchableOpacity>
-            }
-            style={{ backgroundColor: paperTheme.colors.surface }}
-          >
-            {routes.map((r) => (
-              <Menu.Item
-                key={r}
-                onPress={() => {
-                  setRoute(r);
-                  setRouteMenuVisible(false);
-                }}
-                title={r}
-                titleStyle={{ color: paperTheme.colors.text }}
-              />
-            ))}
-          </Menu>
-
-          <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
-
-          {/* Quality Distribution */}
-          <Text variant="titleMedium" style={[styles.sectionTitle, { color: paperTheme.colors.primary }]}>
-            Quality Distribution
-          </Text>
-
-          <View style={styles.percentageRow}>
-            <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf  %</Text>
-              <TextInput
-                value={bestLeaf}
-                onChangeText={setBestLeaf}
-                mode="outlined"
-                keyboardType="numeric"
-                placeholder="0"
-                right={<TextInput.Affix text="%" />}
-                style={styles.percentageInput}
-                dense={true}
-                theme={{ colors: { primary: paperTheme.colors.success, text: paperTheme.colors.text } }}
-              />
+              <View style={styles.percentageContainer}>
+                <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor  %</Text>
+                <TextInput
+                  value={poor}
+                  onChangeText={setPoor}
+                  mode="outlined"
+                  keyboardType="numeric"
+                  placeholder="0"
+                  right={<TextInput.Affix text="%" />}
+                  style={styles.percentageInput}
+                  dense={true}
+                  theme={{ colors: { primary: paperTheme.colors.error, text: paperTheme.colors.text } }}
+                />
+              </View>
             </View>
 
-            <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best  %</Text>
-              <TextInput
-                value={bellowBest}
-                onChangeText={setBellowBest}
-                mode="outlined"
-                keyboardType="numeric"
-                placeholder="0"
-                right={<TextInput.Affix text="%" />}
-                style={styles.percentageInput}
-                dense={true}
-                theme={{ colors: { primary: paperTheme.colors.warning, text: paperTheme.colors.text } }}
-              />
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <Button 
+                mode="contained" 
+                onPress={handleSave}
+                style={[styles.button, styles.saveButton]}
+                icon="content-save"
+                buttonColor={paperTheme.colors.primary}
+                labelStyle={styles.buttonLabel}
+                disabled={!route || !date || !month}
+              >
+                Save
+              </Button>
+              <Button 
+                mode="outlined" 
+                onPress={handleClear}
+                style={styles.button}
+                icon="close"
+                textColor={paperTheme.colors.error}
+                labelStyle={styles.buttonLabel}
+              >
+                Clear
+              </Button>
             </View>
-
-            <View style={styles.percentageContainer}>
-              <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor  %</Text>
-              <TextInput
-                value={poor}
-                onChangeText={setPoor}
-                mode="outlined"
-                keyboardType="numeric"
-                placeholder="0"
-                right={<TextInput.Affix text="%" />}
-                style={styles.percentageInput}
-                dense={true}
-                theme={{ colors: { primary: paperTheme.colors.error, text: paperTheme.colors.text } }}
-              />
-            </View>
-          </View>
-
-          {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <Button 
-              mode="contained" 
-              onPress={handleSave}
-              style={[styles.button, styles.saveButton]}
-              icon="content-save"
-              buttonColor={paperTheme.colors.primary}
-              labelStyle={styles.buttonLabel}
-              disabled={!route || !date || !month}
-            >
-              Save
-            </Button>
-            <Button 
-              mode="outlined" 
-              onPress={handleClear}
-              style={styles.button}
-              icon="close"
-              textColor={paperTheme.colors.error}
-              labelStyle={styles.buttonLabel}
-            >
-              Clear
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+          </Card.Content>
+        </Card>
+        
+        {/* Add extra space at bottom for better scrolling */}
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  bottomSpacing: {
+    height: responsiveSpacing.lg,
   },
   dateHeaderContainer: {
     flexDirection: 'row',

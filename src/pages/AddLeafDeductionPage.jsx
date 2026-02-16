@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   Card,
@@ -144,173 +144,193 @@ export default function AddLeafDeductionPage({ navigation }) {
   );
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
-      <DateHeader />
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <ScrollView 
+        style={[styles.container, { backgroundColor: paperTheme.colors.background }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        <DateHeader />
 
-      <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
-        <Card.Content>
-          <View style={styles.headerContainer}>
-            <IconButton icon="leaf" size={28} iconColor={paperTheme.colors.primary} />
-            <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
-              Add Leaf Deduction
-            </Text>
-          </View>
-
-          {/* Registration Number */}
-          <TextInput
-            label="Registration Number"
-            value={regNo}
-            onChangeText={setRegNo}
-            mode="outlined"
-            left={<TextInput.Icon icon="card-account-details" />}
-            style={styles.fullWidthInput}
-            dense={true}
-            theme={{ colors: { primary: paperTheme.colors.primary } }}
-          />
-
-          {/* Route (Display Only) */}
-          <TextInput
-            label="Route"
-            value={route}
-            mode="outlined"
-            disabled
-            left={<TextInput.Icon icon="map-marker" />}
-            style={styles.fullWidthInput}
-            dense={true}
-          />
-
-          {/* Leaf Type */}
-          <Text variant="bodyMedium" style={[styles.sectionLabel, { color: paperTheme.colors.text }]}>
-            Leaf Type
-          </Text>
-          <SegmentedButtons
-          value={leafType}
-          onValueChange={setLeafType}
-          buttons={[
-            { value: 'super', label: '⭐ Super Leaf' },
-            { value: 'normal', label: '🌿 Normal Leaf' },
-          ]}
-          style={styles.segmentedButtons}
-          theme={{ 
-            colors: { 
-              secondaryContainer: paperTheme.colors.primary,
-              onSecondaryContainer: paperTheme.colors.background, 
-            } 
-          }}
-        />
-
-          {/* Bags and Gross Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Bags</Text>
-              <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{bags}</Text>
+        <Card style={[styles.card, { backgroundColor: paperTheme.colors.surface }]}>
+          <Card.Content>
+            <View style={styles.headerContainer}>
+              <IconButton icon="leaf" size={28} iconColor={paperTheme.colors.primary} />
+              <Text variant="titleLarge" style={[styles.title, { color: paperTheme.colors.primary }]}>
+                Add Leaf Deduction
+              </Text>
             </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Gross (kg)</Text>
-              <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{gross}</Text>
-            </View>
-          </View>
 
-          <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
+            {/* Registration Number */}
+            <TextInput
+              label="Registration Number"
+              value={regNo}
+              onChangeText={setRegNo}
+              mode="outlined"
+              left={<TextInput.Icon icon="card-account-details" />}
+              style={styles.fullWidthInput}
+              dense={true}
+              theme={{ colors: { primary: paperTheme.colors.primary } }}
+            />
 
-          {/* Input Rows */}
-          <InputRow
-            label="Bag Weight"
-            value={bagWeight}
-            onChange={setBagWeight}
-            icon="weight-kilogram"
-            totalLabel="Total Bag Weight"
-            totalValue={`${totalBagWeight} kg`}
-            totalColor={paperTheme.colors.primary}
-            keyboardType="numeric"
-          />
+            {/* Route (Display Only) */}
+            <TextInput
+              label="Route"
+              value={route}
+              mode="outlined"
+              disabled
+              left={<TextInput.Icon icon="map-marker" />}
+              style={styles.fullWidthInput}
+              dense={true}
+            />
 
-          <InputRow
-            label="Coarce"
-            value={coarce}
-            onChange={setCoarce}
-            icon="leaf-off"
-            totalLabel="Total Coarce"
-            totalValue={`${totalCoarce} kg`}
-            totalColor={paperTheme.colors.error}
-            keyboardType="numeric"
-          />
-
-          <InputRow
-            label="Water"
-            value={water}
-            onChange={setWater}
-            icon="water"
-            totalLabel="Total Water"
-            totalValue={`${totalWater} kg`}
-            totalColor={paperTheme.colors.info}
-            keyboardType="numeric"
-          />
-
-          <InputRow
-            label="Boiled"
-            value={boiled}
-            onChange={setBoiled}
-            icon="fire"
-            totalLabel="Total Boiled"
-            totalValue={`${totalBoiled} kg`}
-            totalColor={paperTheme.colors.warning}
-            keyboardType="numeric"
-          />
-
-          <InputRow
-            label="Rejected"
-            value={rejected}
-            onChange={setRejected}
-            icon="close-circle"
-            totalLabel="Total Rejected"
-            totalValue={`${totalRejected} kg`}
-            totalColor={paperTheme.colors.error}
-            keyboardType="numeric"
-          />
-
-          <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
-
-          {/* Net Weight */}
-          <View style={styles.netWeightContainer}>
-            <Text style={[styles.netWeightLabel, { color: paperTheme.colors.text }]}>Net Weight</Text>
-            <Text style={[styles.netWeightValue, { color: paperTheme.colors.success }]}>
-              {calculateNetWeight()} kg
+            {/* Leaf Type */}
+            <Text variant="bodyMedium" style={[styles.sectionLabel, { color: paperTheme.colors.text }]}>
+              Leaf Type
             </Text>
-          </View>
+            <SegmentedButtons
+              value={leafType}
+              onValueChange={setLeafType}
+              buttons={[
+                { value: 'super', label: '⭐ Super Leaf' },
+                { value: 'normal', label: '🌿 Normal Leaf' },
+              ]}
+              style={styles.segmentedButtons}
+              theme={{ 
+                colors: { 
+                  secondaryContainer: paperTheme.colors.primary,
+                  onSecondaryContainer: paperTheme.colors.background, 
+                } 
+              }}
+            />
 
-          {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <Button 
-              mode="contained" 
-              onPress={handleSave}
-              style={[styles.button, styles.saveButton]}
-              icon="content-save"
-              buttonColor={paperTheme.colors.primary}
-              labelStyle={styles.buttonLabel}
-            >
-              Save
-            </Button>
-            <Button 
-              mode="outlined" 
-              onPress={handleClear}
-              style={styles.button}
-              icon="close"
-              textColor={paperTheme.colors.error}
-              labelStyle={styles.buttonLabel}
-            >
-              Clear
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+            {/* Bags and Gross Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Bags</Text>
+                <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{bags}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Gross (kg)</Text>
+                <Text style={[styles.statValue, { color: paperTheme.colors.text }]}>{gross}</Text>
+              </View>
+            </View>
+
+            <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
+
+            {/* Input Rows */}
+            <InputRow
+              label="Bag Weight"
+              value={bagWeight}
+              onChange={setBagWeight}
+              icon="weight-kilogram"
+              totalLabel="Total Bag Weight"
+              totalValue={`${totalBagWeight} kg`}
+              totalColor={paperTheme.colors.primary}
+              keyboardType="numeric"
+            />
+
+            <InputRow
+              label="Coarce"
+              value={coarce}
+              onChange={setCoarce}
+              icon="leaf-off"
+              totalLabel="Total Coarce"
+              totalValue={`${totalCoarce} kg`}
+              totalColor={paperTheme.colors.error}
+              keyboardType="numeric"
+            />
+
+            <InputRow
+              label="Water"
+              value={water}
+              onChange={setWater}
+              icon="water"
+              totalLabel="Total Water"
+              totalValue={`${totalWater} kg`}
+              totalColor={paperTheme.colors.info}
+              keyboardType="numeric"
+            />
+
+            <InputRow
+              label="Boiled"
+              value={boiled}
+              onChange={setBoiled}
+              icon="fire"
+              totalLabel="Total Boiled"
+              totalValue={`${totalBoiled} kg`}
+              totalColor={paperTheme.colors.warning}
+              keyboardType="numeric"
+            />
+
+            <InputRow
+              label="Rejected"
+              value={rejected}
+              onChange={setRejected}
+              icon="close-circle"
+              totalLabel="Total Rejected"
+              totalValue={`${totalRejected} kg`}
+              totalColor={paperTheme.colors.error}
+              keyboardType="numeric"
+            />
+
+            <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
+
+            {/* Net Weight */}
+            <View style={styles.netWeightContainer}>
+              <Text style={[styles.netWeightLabel, { color: paperTheme.colors.text }]}>Net Weight</Text>
+              <Text style={[styles.netWeightValue, { color: paperTheme.colors.success }]}>
+                {calculateNetWeight()} kg
+              </Text>
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <Button 
+                mode="contained" 
+                onPress={handleSave}
+                style={[styles.button, styles.saveButton]}
+                icon="content-save"
+                buttonColor={paperTheme.colors.primary}
+                labelStyle={styles.buttonLabel}
+              >
+                Save
+              </Button>
+              <Button 
+                mode="outlined" 
+                onPress={handleClear}
+                style={styles.button}
+                icon="close"
+                textColor={paperTheme.colors.error}
+                labelStyle={styles.buttonLabel}
+              >
+                Clear
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+        
+        {/* Add extra space at bottom for better scrolling */}
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  bottomSpacing: {
+    height: responsiveSpacing.lg,
   },
   dateHeaderContainer: {
     flexDirection: 'row',
