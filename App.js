@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from './src/context/AuthContext'; // Add this import
 import { LeafDataProvider } from './src/context/LeafDataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -48,7 +49,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <AuthProvider> {/* Add AuthProvider here, wrapping AppContent */}
+          <AppContent />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

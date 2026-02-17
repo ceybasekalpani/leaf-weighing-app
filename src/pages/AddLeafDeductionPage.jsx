@@ -1,15 +1,27 @@
-import { useEffect, useRef, useState } from 'react'; // Add useEffect import
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import {
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import {
+  ActivityIndicator,
   Button,
   Card,
   Divider,
   IconButton,
   SegmentedButtons,
+  Snackbar,
   Text,
   TextInput,
   useTheme as usePaperTheme
 } from 'react-native-paper';
+import { deductionApi, supplierApi } from '../api/leafApi';
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
@@ -30,26 +42,44 @@ export default function AddLeafDeductionPage({ navigation }) {
   const waterRef = useRef(null);
   const boiledRef = useRef(null);
   const rejectedRef = useRef(null);
+  const regNoRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Create timer refs for auto-focus delay
   const bagWeightTimerRef = useRef(null);
   const coarceTimerRef = useRef(null);
   const waterTimerRef = useRef(null);
   const boiledTimerRef = useRef(null);
+  const searchTimerRef = useRef(null);
+  const regNoSearchTimerRef = useRef(null);
 
   const [date] = useState(getCurrentDate());
   const [month] = useState(getCurrentMonth());
   const [regNo, setRegNo] = useState('');
-  const [route] = useState('Hapugastenna');
-  const [name] = useState('Supplier Name'); // This would come from database based on regNo
-  const [leafType, setLeafType] = useState('green');
-  const [bags] = useState('5');
-  const [gross] = useState('250');
+  const [route, setRoute] = useState('');
+  const [name, setName] = useState('');
+  const [leafType, setLeafType] = useState('Normal');
+  const [bags, setBags] = useState('0');
+  const [gross, setGross] = useState('0');
   const [bagWeight, setBagWeight] = useState('');
   const [coarce, setCoarce] = useState('');
   const [water, setWater] = useState('');
   const [boiled, setBoiled] = useState('');
   const [rejected, setRejected] = useState('');
+
+  // Search modal state
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // State to track if we're currently searching to prevent UI flicker
+  const [isSearchingRegNo, setIsSearchingRegNo] = useState(false);
+  const [lastSearchedRegNo, setLastSearchedRegNo] = useState('');
 
   // Clear all timers on unmount
   useEffect(() => {
@@ -58,38 +88,238 @@ export default function AddLeafDeductionPage({ navigation }) {
       clearTimeout(coarceTimerRef.current);
       clearTimeout(waterTimerRef.current);
       clearTimeout(boiledTimerRef.current);
+      clearTimeout(searchTimerRef.current);
+      clearTimeout(regNoSearchTimerRef.current);
     };
   }, []);
+
+  // Search suppliers as user types in modal
+  const handleSearchInputChange = (text) => {
+    setSearchQuery(text);
+    
+    // Clear existing timer
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    
+    // Only search if text length >= 1
+    if (text.length >= 1) {
+      setSearchLoading(true);
+      searchTimerRef.current = setTimeout(() => {
+        performSearch(text);
+      }, 500);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  // Perform the actual search for modal
+  const performSearch = async (query) => {
+    try {
+      console.log('🔍 Searching suppliers with query:', query);
+      const response = await supplierApi.searchSuppliers(query);
+      console.log('✅ Search results:', response.data);
+      
+      if (response.data.success) {
+        setSearchResults(response.data.data);
+      }
+    } catch (error) {
+      console.error('❌ Error searching suppliers:', error);
+      setSnackbarMessage('Failed to search suppliers');
+      setSnackbarVisible(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Handle registration number input with debounce
+  const handleRegNoChange = (text) => {
+    setRegNo(text);
+    
+    // Clear any existing timer
+    if (regNoSearchTimerRef.current) {
+      clearTimeout(regNoSearchTimerRef.current);
+    }
+    
+    // Don't search if text is empty
+    if (!text.trim()) {
+      setName('');
+      setRoute('');
+      return;
+    }
+    
+    // Set a timer to search after user stops typing (800ms delay)
+    regNoSearchTimerRef.current = setTimeout(() => {
+      searchSupplierByRegNo(text);
+    }, 800);
+  };
+
+  // Search supplier by registration number
+  const searchSupplierByRegNo = async (regNoValue) => {
+    // Prevent duplicate searches
+    if (lastSearchedRegNo === regNoValue || !regNoValue.trim()) {
+      return;
+    }
+
+    setIsSearchingRegNo(true);
+    setLastSearchedRegNo(regNoValue);
+
+    try {
+      console.log('🔍 Searching for RegNo:', regNoValue);
+      const response = await supplierApi.getSupplierByRegNo(regNoValue);
+      console.log('✅ Search response:', response.data);
+      
+      if (response.data.success) {
+        setName(response.data.data.supplierName);
+        setRoute(response.data.data.route || '');
+        // Don't show snackbar for auto-search to avoid distraction
+      }
+    } catch (error) {
+      console.error('❌ Error searching supplier:', error);
+      // Only clear if this is still the current regNo
+      if (regNo === regNoValue) {
+        setName('');
+        setRoute('');
+      }
+    } finally {
+      setIsSearchingRegNo(false);
+    }
+  };
+
+  // Open search modal
+  const openSearchModal = () => {
+    setSearchModalVisible(true);
+    setSearchQuery('');
+    setSearchResults([]);
+    setTimeout(() => searchInputRef.current?.focus(), 100);
+  };
+
+ // Select supplier from search results - Updated to handle different property names
+const selectSupplier = (supplier) => {
+  // Safely access properties regardless of naming convention
+  const regNo = supplier.RegNo || supplier.regNo;
+  const supplierName = supplier.SupplierName || supplier.supplierName || supplier.name;
+  const route = supplier.Route || supplier.route || '';
+  
+  setRegNo(regNo?.toString() || '');
+  setName(supplierName || '');
+  setRoute(route);
+  setLastSearchedRegNo(regNo?.toString() || '');
+  setSearchModalVisible(false);
+  setSnackbarMessage(`Selected: ${supplierName || 'Supplier'}`);
+  setSnackbarVisible(true);
+  
+  // Focus on bag weight after selection
+  setTimeout(() => bagWeightRef.current?.focus(), 500);
+};
+
+  // Handle manual search button press
+  const handleManualSearch = async () => {
+    if (!regNo.trim()) {
+      setSnackbarMessage('Please enter registration number');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('🔍 Manually searching for RegNo:', regNo);
+      const response = await supplierApi.getSupplierByRegNo(regNo);
+      console.log('✅ Search response:', response.data);
+      
+      if (response.data.success) {
+        setName(response.data.data.supplierName);
+        setRoute(response.data.data.route || '');
+        setLastSearchedRegNo(regNo);
+        setSnackbarMessage(`Supplier found: ${response.data.data.supplierName}`);
+        setSnackbarVisible(true);
+        
+        // Auto-focus on bag weight after successful search
+        setTimeout(() => bagWeightRef.current?.focus(), 500);
+      }
+    } catch (error) {
+      console.error('❌ Error searching supplier:', error);
+      setSnackbarMessage('Supplier not found. Please check registration number.');
+      setSnackbarVisible(true);
+      setName('');
+      setRoute('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load summary for selected supplier and leaf type
+  const handleLoadSummary = async () => {
+    if (!regNo.trim()) {
+      setSnackbarMessage('Please select a supplier first');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    if (!name) {
+      setSnackbarMessage('Please search and select a supplier first');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    setLoadingSummary(true);
+    try {
+      console.log('📊 Loading summary for RegNo:', regNo, 'LeafType:', leafType);
+      const response = await deductionApi.getSummary(regNo, leafType);
+      console.log('✅ Summary response:', response.data);
+      
+      if (response.data.success) {
+        const data = response.data.data;
+        
+        // Update all fields with summary data
+        setBags(data.totalBags.toString());
+        setGross(data.totalGross.toString());
+        setBagWeight(data.totalBagWeight ? (data.totalBagWeight / (data.totalBags || 1)).toFixed(2) : '');
+        setCoarce(data.totalCoarce ? (data.totalCoarce / (data.totalBags || 1)).toFixed(2) : '');
+        setWater(data.totalWater ? (data.totalWater / (data.totalBags || 1)).toFixed(2) : '');
+        setBoiled(data.totalBoiled ? (data.totalBoiled / (data.totalBags || 1)).toFixed(2) : '');
+        setRejected(data.totalRejected ? (data.totalRejected / (data.totalBags || 1)).toFixed(2) : '');
+        
+        setSnackbarMessage(`Summary loaded for ${leafType} leaf`);
+        setSnackbarVisible(true);
+      }
+    } catch (error) {
+      console.error('❌ Error loading summary:', error);
+      if (error.response?.status === 404) {
+        setSnackbarMessage('No summary data found for this supplier');
+      } else {
+        setSnackbarMessage('Failed to load summary');
+      }
+      setSnackbarVisible(true);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   // Handle auto-focus after a delay (500ms) of no typing
   const handleBagWeightChange = (text) => {
     setBagWeight(text);
     
-    // Clear existing timer
     if (bagWeightTimerRef.current) {
       clearTimeout(bagWeightTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
-    // Only if there's a value and it's not the last character being deleted
     if (text.length > 0) {
       bagWeightTimerRef.current = setTimeout(() => {
         if (coarceRef.current) {
           coarceRef.current.focus();
         }
-      }, 500); // 500ms delay
+      }, 500);
     }
   };
 
   const handleCoarceChange = (text) => {
     setCoarce(text);
     
-    // Clear existing timer
     if (coarceTimerRef.current) {
       clearTimeout(coarceTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
     if (text.length > 0) {
       coarceTimerRef.current = setTimeout(() => {
         if (waterRef.current) {
@@ -102,12 +332,10 @@ export default function AddLeafDeductionPage({ navigation }) {
   const handleWaterChange = (text) => {
     setWater(text);
     
-    // Clear existing timer
     if (waterTimerRef.current) {
       clearTimeout(waterTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
     if (text.length > 0) {
       waterTimerRef.current = setTimeout(() => {
         if (boiledRef.current) {
@@ -120,12 +348,10 @@ export default function AddLeafDeductionPage({ navigation }) {
   const handleBoiledChange = (text) => {
     setBoiled(text);
     
-    // Clear existing timer
     if (boiledTimerRef.current) {
       clearTimeout(boiledTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
     if (text.length > 0) {
       boiledTimerRef.current = setTimeout(() => {
         if (rejectedRef.current) {
@@ -137,59 +363,89 @@ export default function AddLeafDeductionPage({ navigation }) {
 
   const handleRejectedChange = (text) => {
     setRejected(text);
-    // No timer for last field, but you could add one to auto-save if needed
   };
 
-  // Calculate totals (without decimals)
-  const totalBagWeight = bagWeight ? (parseInt(bags) * parseInt(bagWeight || 0)).toString() : '0';
-  const totalCoarce = coarce ? (parseInt(bags) * parseInt(coarce || 0)).toString() : '0';
-  const totalWater = water ? (parseInt(bags) * parseInt(water || 0)).toString() : '0';
-  const totalBoiled = boiled ? (parseInt(bags) * parseInt(boiled || 0)).toString() : '0';
-  const totalRejected = rejected ? (parseInt(bags) * parseInt(rejected || 0)).toString() : '0';
+  // Calculate totals (with decimals)
+  const totalBagWeight = bagWeight ? (parseInt(bags) * parseFloat(bagWeight || 0)).toFixed(2) : '0';
+  const totalCoarce = coarce ? (parseInt(bags) * parseFloat(coarce || 0)).toFixed(2) : '0';
+  const totalWater = water ? (parseInt(bags) * parseFloat(water || 0)).toFixed(2) : '0';
+  const totalBoiled = boiled ? (parseInt(bags) * parseFloat(boiled || 0)).toFixed(2) : '0';
+  const totalRejected = rejected ? (parseInt(bags) * parseFloat(rejected || 0)).toFixed(2) : '0';
   
   const calculateNetWeight = () => {
-    const grossWeight = parseInt(gross) || 0;
-    const totalBagWt = parseInt(totalBagWeight) || 0;
-    const totalCoarceWt = parseInt(totalCoarce) || 0;
-    const totalWaterWt = parseInt(totalWater) || 0;
-    const totalBoiledWt = parseInt(totalBoiled) || 0;
-    const totalRejectedWt = parseInt(totalRejected) || 0;
+    const grossWeight = parseFloat(gross) || 0;
+    const totalBagWt = parseFloat(totalBagWeight) || 0;
+    const totalCoarceWt = parseFloat(totalCoarce) || 0;
+    const totalWaterWt = parseFloat(totalWater) || 0;
+    const totalBoiledWt = parseFloat(totalBoiled) || 0;
+    const totalRejectedWt = parseFloat(totalRejected) || 0;
     
-    return (grossWeight - totalBagWt - totalCoarceWt - totalWaterWt - totalBoiledWt - totalRejectedWt).toString();
+    return (grossWeight - totalBagWt - totalCoarceWt - totalWaterWt - totalBoiledWt - totalRejectedWt).toFixed(2);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Clear any pending timers when saving
     clearTimeout(bagWeightTimerRef.current);
     clearTimeout(coarceTimerRef.current);
     clearTimeout(waterTimerRef.current);
     clearTimeout(boiledTimerRef.current);
 
+    // Validate
+    if (!regNo || !name) {
+      setSnackbarMessage('Please select a supplier first');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    if (parseInt(bags) <= 0) {
+      setSnackbarMessage('Number of bags must be greater than 0');
+      setSnackbarVisible(true);
+      return;
+    }
+
+    setLoading(true);
+
     const deductionData = {
-      date,
-      month,
-      regNo,
-      name,
+      regNo: parseInt(regNo),
+      supplierName: name,
       route,
       leafType,
-      bags,
-      gross,
-      bagWeight,
-      totalBagWeight,
-      coarce,
-      totalCoarce,
-      water,
-      totalWater,
-      boiled,
-      totalBoiled,
-      rejected,
-      totalRejected,
-      netWeight: calculateNetWeight(),
-      timestamp: new Date().toISOString(),
+      bags: parseInt(bags) || 0,
+      gross: parseFloat(gross) || 0,
+      bagWeight: parseFloat(bagWeight) || 0,
+      coarce: parseFloat(coarce) || 0,
+      water: parseFloat(water) || 0,
+      boiled: parseFloat(boiled) || 0,
+      rejected: parseFloat(rejected) || 0,
+      netWeight: parseFloat(calculateNetWeight()) || 0,
+      userName: 'mobile_user',
+      month,
     };
-    
-    addLeafDeduction(deductionData);
-    handleClear();
+
+    console.log('💾 Saving deduction:', deductionData);
+
+    try {
+      const response = await deductionApi.saveDeduction(deductionData);
+      console.log('✅ Save response:', response.data);
+      
+      if (response.data.success) {
+        addLeafDeduction({
+          ...deductionData,
+          ind: response.data.data.ind,
+          timestamp: new Date().toISOString(),
+        });
+        
+        setSnackbarMessage('Deduction saved successfully');
+        setSnackbarVisible(true);
+        handleClear();
+      }
+    } catch (error) {
+      console.error('❌ Error saving deduction:', error);
+      setSnackbarMessage('Failed to save deduction. Please try again.');
+      setSnackbarVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClear = () => {
@@ -199,18 +455,32 @@ export default function AddLeafDeductionPage({ navigation }) {
     clearTimeout(waterTimerRef.current);
     clearTimeout(boiledTimerRef.current);
 
-    setRegNo('');
+    // Clear only deduction fields, keep supplier info
     setBagWeight('');
     setCoarce('');
     setWater('');
     setBoiled('');
     setRejected('');
-    setLeafType('green');
     
-    // Optionally focus on first input after clearing
+    // Focus on bag weight after clearing
     if (bagWeightRef.current) {
       bagWeightRef.current.focus();
     }
+  };
+
+  const handleResetSupplier = () => {
+    setRegNo('');
+    setName('');
+    setRoute('');
+    setBags('0');
+    setGross('0');
+    setBagWeight('');
+    setCoarce('');
+    setWater('');
+    setBoiled('');
+    setRejected('');
+    setLastSearchedRegNo('');
+    regNoRef.current?.focus();
   };
 
   // Enhanced Date Header with Today's date and Current month styling
@@ -327,6 +597,90 @@ export default function AddLeafDeductionPage({ navigation }) {
     </View>
   );
 
+  // Search Modal Component - Updated with safe property access
+const SearchModal = () => (
+  <Modal
+    visible={searchModalVisible}
+    animationType="slide"
+    transparent={true}
+    onRequestClose={() => setSearchModalVisible(false)}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
+          <IconButton 
+            icon="close" 
+            size={24} 
+            onPress={() => setSearchModalVisible(false)}
+            iconColor={paperTheme.colors.error}
+          />
+        </View>
+
+        <View style={styles.modalSearchContainer}>
+          <TextInput
+            ref={searchInputRef}
+            placeholder="Type registration number or name..."
+            value={searchQuery}
+            onChangeText={handleSearchInputChange}
+            mode="outlined"
+            left={<TextInput.Icon icon="magnify" />}
+            right={searchLoading ? <ActivityIndicator size="small" /> : null}
+            style={styles.modalSearchInput}
+            autoFocus={true}
+          />
+        </View>
+
+        {searchResults.length > 0 ? (
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item, index) => item.RegNo?.toString() || index.toString()}
+            renderItem={({ item }) => {
+              // Safely access properties with fallbacks
+              const regNo = item.RegNo || item.regNo || 'N/A';
+              const supplierName = item.SupplierName || item.supplierName || item.name || 'Unknown';
+              const route = item.Route || item.route || '';
+              
+              return (
+                <TouchableOpacity
+                  style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
+                  onPress={() => selectSupplier({
+                    RegNo: regNo,
+                    SupplierName: supplierName,
+                    Route: route
+                  })}
+                >
+                  <View style={styles.searchResultLeft}>
+                    <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
+                      #{regNo}
+                    </Text>
+                    <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
+                      {supplierName}
+                    </Text>
+                    {route ? (
+                      <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
+                        Route: {route}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
+                </TouchableOpacity>
+              );
+            }}
+            style={styles.searchResultsList}
+          />
+        ) : searchQuery.length > 0 && !searchLoading ? (
+          <View style={styles.noResultsContainer}>
+            <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
+              No suppliers found
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  </Modal>
+);
+
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
@@ -364,53 +718,74 @@ export default function AddLeafDeductionPage({ navigation }) {
             <View style={styles.sectionContainer}>
               <Text style={[styles.sectionTitle, { color: paperTheme.colors.primary }]}>Farmer Details</Text>
               
-              {/* Registration Number */}
+              {/* Registration Number with Search Button */}
+              <View style={styles.regNoRow}>
+                <View style={styles.regNoInputContainer}>
+                  <TextInput
+                    ref={regNoRef}
+                    label="Registration Number"
+                    value={regNo}
+                    onChangeText={handleRegNoChange}
+                    mode="outlined"
+                    left={<TextInput.Icon icon="card-account-details" color={paperTheme.colors.primary} />}
+                    style={styles.fullWidthInput}
+                    dense={true}
+                    outlineStyle={styles.inputOutline}
+                    theme={{ colors: { primary: paperTheme.colors.primary } }}
+                    returnKeyType="search"
+                    onSubmitEditing={handleManualSearch}
+                    right={regNo ? (
+                      <TextInput.Icon 
+                        icon="close" 
+                        onPress={handleResetSupplier}
+                        color={paperTheme.colors.error}
+                      />
+                    ) : null}
+                  />
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={openSearchModal}
+                  style={styles.searchButton}
+                  buttonColor={paperTheme.colors.primary}
+                  icon="magnify"
+                >
+                  Browse
+                </Button>
+              </View>
+
+              {/* Name Field */}
               <TextInput
-                label="Registration Number"
-                value={regNo}
-                onChangeText={setRegNo}
+                label="Name"
+                value={name}
                 mode="outlined"
-                left={<TextInput.Icon icon="card-account-details" color={paperTheme.colors.primary} />}
-                style={styles.fullWidthInput}
+                disabled
+                left={<TextInput.Icon icon="account" color={paperTheme.colors.textSecondary} />}
+                style={[
+                  styles.fullWidthInput, 
+                  styles.disabledInput, 
+                  { backgroundColor: paperTheme.colors.disabled + '20' }
+                ]}
                 dense={true}
-                outlineStyle={styles.inputOutline}
-                theme={{ colors: { primary: paperTheme.colors.primary } }}
-                returnKeyType="next"
-                onSubmitEditing={() => bagWeightRef.current?.focus()}
+                outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
+                theme={{ colors: { text: paperTheme.colors.text } }}
               />
 
-              {/* Name Field - Same style as Route */}
-            <TextInput
-  label="Name"
-  value={name}
-  mode="outlined"
-  disabled
-  left={<TextInput.Icon icon="account" color={paperTheme.colors.textSecondary} />}
-  style={[
-    styles.fullWidthInput, 
-    styles.disabledInput, 
-    { backgroundColor: paperTheme.colors.disabled + '20' } // Add dynamic background
-  ]}
-  dense={true}
-  outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
-  theme={{ colors: { text: paperTheme.colors.text } }}
-/>
-
-{/* Route - Display Only */}
-<TextInput
-  label="Route"
-  value={route}
-  mode="outlined"
-  disabled
-  left={<TextInput.Icon icon="map-marker" color={paperTheme.colors.textSecondary} />}
-  style={[
-    styles.fullWidthInput, 
-    styles.disabledInput,
-    { backgroundColor: paperTheme.colors.disabled + '20' } // Add dynamic background
-  ]}
-  dense={true}
-  outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
-/>
+              {/* Route - Display Only */}
+              <TextInput
+                label="Route"
+                value={route}
+                mode="outlined"
+                disabled
+                left={<TextInput.Icon icon="map-marker" color={paperTheme.colors.textSecondary} />}
+                style={[
+                  styles.fullWidthInput, 
+                  styles.disabledInput,
+                  { backgroundColor: paperTheme.colors.disabled + '20' }
+                ]}
+                dense={true}
+                outlineStyle={[styles.inputOutline, { borderColor: paperTheme.colors.border }]}
+              />
             </View>
 
             {/* Leaf Type Section */}
@@ -422,16 +797,16 @@ export default function AddLeafDeductionPage({ navigation }) {
                 onValueChange={setLeafType}
                 buttons={[
                   { 
-                    value: 'super', 
+                    value: 'Super', 
                     label: 'Super Leaf',
                     icon: 'star',
-                    style: leafType === 'super' ? styles.selectedSegment : {}
+                    style: leafType === 'Super' ? styles.selectedSegment : {}
                   },
                   { 
-                    value: 'normal', 
+                    value: 'Normal', 
                     label: 'Normal Leaf',
                     icon: 'leaf',
-                    style: leafType === 'normal' ? styles.selectedSegment : {}
+                    style: leafType === 'Normal' ? styles.selectedSegment : {}
                   },
                 ]}
                 style={styles.segmentedButtons}
@@ -442,6 +817,19 @@ export default function AddLeafDeductionPage({ navigation }) {
                   } 
                 }}
               />
+
+              {/* Load Summary Button - Now placed after Leaf Information */}
+              <Button
+                mode="contained"
+                onPress={handleLoadSummary}
+                loading={loadingSummary}
+                disabled={loadingSummary || !regNo || !name}
+                style={styles.loadSummaryButton}
+                icon="calculator"
+                buttonColor={paperTheme.colors.secondary}
+              >
+                Load Deduction Summary
+              </Button>
             </View>
 
             {/* Bags and Gross Row */}
@@ -486,7 +874,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 inputRef={bagWeightRef}
                 returnKeyType="next"
                 onSubmitEditing={() => {
-                  // Clear timer and manually move to next field when Next button is pressed
                   clearTimeout(bagWeightTimerRef.current);
                   coarceRef.current?.focus();
                 }}
@@ -554,7 +941,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 keyboardType="numeric"
                 inputRef={rejectedRef}
                 returnKeyType="done"
-                onSubmitEditing={handleSave} // Save when done is pressed on last field
+                onSubmitEditing={handleSave}
               />
             </View>
 
@@ -584,6 +971,8 @@ export default function AddLeafDeductionPage({ navigation }) {
                 buttonColor={paperTheme.colors.primary}
                 labelStyle={[styles.buttonLabel, { color: '#FFFFFF' }]}
                 contentStyle={styles.buttonContent}
+                loading={loading}
+                disabled={loading}
               >
                 Save
               </Button>
@@ -595,6 +984,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 textColor={paperTheme.colors.error}
                 labelStyle={styles.buttonLabel}
                 contentStyle={styles.buttonContent}
+                disabled={loading}
               >
                 Clear
               </Button>
@@ -602,14 +992,25 @@ export default function AddLeafDeductionPage({ navigation }) {
           </Card.Content>
         </Card>
         
-        {/* Add extra space at bottom for better scrolling */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      <SearchModal />
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </KeyboardAvoidingView>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -819,5 +1220,85 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(15),
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  // New styles for added features
+  regNoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.sm,
+  },
+  regNoInputContainer: {
+    flex: 1,
+  },
+  searchButton: {
+    height: moderateScale(52),
+    justifyContent: 'center',
+    borderRadius: moderateScale(12),
+    minWidth: responsiveSpacing.xxl,
+  },
+  loadSummaryButton: {
+    marginTop: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.md,
+    borderRadius: moderateScale(12),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: moderateScale(24),
+    borderTopRightRadius: moderateScale(24),
+    padding: responsiveSpacing.lg,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.md,
+  },
+  modalTitle: {
+    fontSize: responsiveFontSize(20),
+    fontWeight: 'bold',
+  },
+  modalSearchContainer: {
+    marginBottom: responsiveSpacing.md,
+  },
+  modalSearchInput: {
+    height: moderateScale(52),
+  },
+  searchResultsList: {
+    maxHeight: responsiveSpacing.xxxl * 8,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: responsiveSpacing.md,
+    borderBottomWidth: 1,
+  },
+  searchResultLeft: {
+    flex: 1,
+  },
+  searchResultRegNo: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: 'bold',
+  },
+  searchResultName: {
+    fontSize: responsiveFontSize(16),
+    marginTop: responsiveSpacing.xs,
+  },
+  searchResultRoute: {
+    fontSize: responsiveFontSize(12),
+    marginTop: responsiveSpacing.xs,
+  },
+  noResultsContainer: {
+    padding: responsiveSpacing.xl,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    fontSize: responsiveFontSize(16),
   },
 });

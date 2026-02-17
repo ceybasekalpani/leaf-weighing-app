@@ -21,6 +21,16 @@ export const moderateScale = (size, factor = 0.5) => {
   return size + (scale(size) - size) * factor;
 };
 
+// ADD THIS MISSING EXPORT
+export const responsiveHeight = (percentage) => {
+  return (SCREEN_HEIGHT * percentage) / 100;
+};
+
+// ADD THIS MISSING EXPORT
+export const responsiveWidth = (percentage) => {
+  return (SCREEN_WIDTH * percentage) / 100;
+};
+
 // Check device type
 export const isTablet = () => {
   const pixelDensity = PixelRatio.get();

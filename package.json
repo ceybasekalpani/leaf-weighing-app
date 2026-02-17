@@ -18,6 +18,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.28",
     "async-storage": "^0.1.0",
+    "axios": "^1.13.5",
     "expo": "~54.0.33",
     "expo-linking": "~8.0.11",
     "expo-splash-screen": "~31.0.13",

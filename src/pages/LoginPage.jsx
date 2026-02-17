@@ -1,19 +1,45 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput, useTheme as usePaperTheme } from 'react-native-paper';
 import ThemeToggle from '../../components/ThemeToggle';
+import { useAuth } from '../context/AuthContext'; // Add this import
 import { useTheme } from '../context/ThemeContext';
 
 export default function LoginPage({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false); // Add loading state
   const paperTheme = usePaperTheme();
   const { isDarkMode } = useTheme();
+  const { login } = useAuth(); // Get login function from AuthContext
 
-  const handleLogin = () => {
-    // Add authentication logic here
-    navigation.replace('MainTabs');
+  const handleLogin = async () => {
+    // Validate inputs
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please enter both username and password');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      // Call login from AuthContext
+      const result = await login(username, password);
+      
+      if (result.success) {
+        // Navigate to main tabs on successful login
+        navigation.replace('MainTabs');
+      } else {
+        // Show error message
+        Alert.alert('Login Failed', result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,6 +70,12 @@ export default function LoginPage({ navigation }) {
             left={<TextInput.Icon icon="account" />}
             style={styles.input}
             theme={{ colors: { primary: paperTheme.colors.primary } }}
+            disabled={loading} // Disable while loading
+            returnKeyType="next"
+            onSubmitEditing={() => {
+              // Focus password field when next is pressed
+              // You would need to add a ref for password input
+            }}
           />
 
           <TextInput
@@ -61,6 +93,9 @@ export default function LoginPage({ navigation }) {
             }
             style={styles.input}
             theme={{ colors: { primary: paperTheme.colors.primary } }}
+            disabled={loading} // Disable while loading
+            returnKeyType="done"
+            onSubmitEditing={handleLogin} // Submit when done is pressed
           />
 
           <Button
@@ -69,8 +104,10 @@ export default function LoginPage({ navigation }) {
             style={styles.loginButton}
             contentStyle={styles.buttonContent}
             buttonColor={paperTheme.colors.primary}
+            loading={loading} // Show loading indicator
+            disabled={loading} // Disable while loading
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </Button>
         </View>
       </Surface>
@@ -78,6 +115,7 @@ export default function LoginPage({ navigation }) {
   );
 }
 
+// Styles remain exactly the same - NO CHANGES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
