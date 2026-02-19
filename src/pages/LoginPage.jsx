@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput, useTheme as usePaperTheme } from 'react-native-paper';
 import ThemeToggle from '../../components/ThemeToggle';
-import { useAuth } from '../context/AuthContext'; // Add this import
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 export default function LoginPage({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false); // Add loading state
+  const [loading, setLoading] = useState(false);
   const paperTheme = usePaperTheme();
   const { isDarkMode } = useTheme();
-  const { login } = useAuth(); // Get login function from AuthContext
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     // Validate inputs
@@ -70,7 +70,7 @@ export default function LoginPage({ navigation }) {
             left={<TextInput.Icon icon="account" />}
             style={styles.input}
             theme={{ colors: { primary: paperTheme.colors.primary } }}
-            disabled={loading} // Disable while loading
+            disabled={loading}
             returnKeyType="next"
             onSubmitEditing={() => {
               // Focus password field when next is pressed
@@ -93,9 +93,9 @@ export default function LoginPage({ navigation }) {
             }
             style={styles.input}
             theme={{ colors: { primary: paperTheme.colors.primary } }}
-            disabled={loading} // Disable while loading
+            disabled={loading}
             returnKeyType="done"
-            onSubmitEditing={handleLogin} // Submit when done is pressed
+            onSubmitEditing={handleLogin}
           />
 
           <Button
@@ -104,8 +104,8 @@ export default function LoginPage({ navigation }) {
             style={styles.loginButton}
             contentStyle={styles.buttonContent}
             buttonColor={paperTheme.colors.primary}
-            loading={loading} // Show loading indicator
-            disabled={loading} // Disable while loading
+            loading={loading}
+            disabled={loading}
           >
             {loading ? 'Logging in...' : 'Login'}
           </Button>
@@ -115,7 +115,6 @@ export default function LoginPage({ navigation }) {
   );
 }
 
-// Styles remain exactly the same - NO CHANGES
 const styles = StyleSheet.create({
   container: {
     flex: 1,

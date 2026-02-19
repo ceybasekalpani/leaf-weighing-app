@@ -22,6 +22,7 @@ import {
   useTheme as usePaperTheme
 } from 'react-native-paper';
 import { deductionApi, supplierApi } from '../api/leafApi';
+import { useAuth } from '../context/AuthContext'; // IMPORTANT: Add this import
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
@@ -34,6 +35,7 @@ import {
 export default function AddLeafDeductionPage({ navigation }) {
   const paperTheme = usePaperTheme();
   const { addLeafDeduction } = useLeafData();
+  const { user } = useAuth(); // IMPORTANT: Get logged-in user from AuthContext
   const isTabletDevice = isTablet();
 
   // Create refs for each input field
@@ -60,7 +62,7 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [name, setName] = useState('');
   const [leafType, setLeafType] = useState('Normal');
   
-  // Summary totals from database (these are the actual totals from all records)
+  // Summary totals from database
   const [summaryTotals, setSummaryTotals] = useState({
     bags: '0',
     gross: '0',
@@ -69,10 +71,10 @@ export default function AddLeafDeductionPage({ navigation }) {
     water: '0',
     boiled: '0',
     rejected: '0',
-    netWeight: '0' // This comes directly from the database
+    netWeight: '0'
   });
   
-  // Current input values (for the new record being added)
+  // Current input values
   const [currentBagWeight, setCurrentBagWeight] = useState('');
   const [currentCoarce, setCurrentCoarce] = useState('');
   const [currentWater, setCurrentWater] = useState('');
@@ -89,7 +91,7 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   
-  // State to track if we're currently searching to prevent UI flicker
+  // State to track if we're currently searching
   const [isSearchingRegNo, setIsSearchingRegNo] = useState(false);
   const [lastSearchedRegNo, setLastSearchedRegNo] = useState('');
 
@@ -109,12 +111,10 @@ export default function AddLeafDeductionPage({ navigation }) {
   const handleSearchInputChange = (text) => {
     setSearchQuery(text);
     
-    // Clear existing timer
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
     }
     
-    // Only search if text length >= 1
     if (text.length >= 1) {
       setSearchLoading(true);
       searchTimerRef.current = setTimeout(() => {
@@ -125,7 +125,6 @@ export default function AddLeafDeductionPage({ navigation }) {
     }
   };
 
-  // Perform the actual search for modal
   const performSearch = async (query) => {
     try {
       console.log('🔍 Searching suppliers with query:', query);
@@ -147,31 +146,29 @@ export default function AddLeafDeductionPage({ navigation }) {
     }
   };
 
-  // Handle registration number input with debounce
+  // Handle registration number input
   const handleRegNoChange = (text) => {
-    setRegNo(text);
+    // Allow only numeric
+    const numericText = text.replace(/[^0-9]/g, '');
+    setRegNo(numericText);
     
-    // Clear any existing timer
     if (regNoSearchTimerRef.current) {
       clearTimeout(regNoSearchTimerRef.current);
     }
     
-    // Don't search if text is empty
-    if (!text.trim()) {
+    if (!numericText.trim()) {
       setName('');
       setRoute('');
       return;
     }
     
-    // Set a timer to search after user stops typing (800ms delay)
     regNoSearchTimerRef.current = setTimeout(() => {
-      searchSupplierByRegNo(text);
+      searchSupplierByRegNo(numericText);
     }, 800);
   };
 
   // Search supplier by registration number
   const searchSupplierByRegNo = async (regNoValue) => {
-    // Prevent duplicate searches
     if (lastSearchedRegNo === regNoValue || !regNoValue.trim()) {
       return;
     }
@@ -190,7 +187,6 @@ export default function AddLeafDeductionPage({ navigation }) {
       }
     } catch (error) {
       console.error('❌ Error searching supplier:', error);
-      // Only clear if this is still the current regNo
       if (regNo === regNoValue) {
         setName('');
         setRoute('');
@@ -210,7 +206,6 @@ export default function AddLeafDeductionPage({ navigation }) {
 
   // Select supplier from search results
   const selectSupplier = (supplier) => {
-    // Safely access properties regardless of naming convention
     const regNo = supplier.RegNo || supplier.regNo;
     const supplierName = supplier.SupplierName || supplier.supplierName || supplier.name;
     const route = supplier.Route || supplier.route || '';
@@ -229,7 +224,7 @@ export default function AddLeafDeductionPage({ navigation }) {
     }, 500);
   };
 
-  // Handle manual search button press
+  // Handle manual search
   const handleManualSearch = async () => {
     if (!regNo.trim()) {
       setSnackbarMessage('Please enter registration number');
@@ -250,7 +245,7 @@ export default function AddLeafDeductionPage({ navigation }) {
         setSnackbarMessage(`Supplier found: ${response.data.data.supplierName}`);
         setSnackbarVisible(true);
         
-        // Auto-load summary after successful search
+        // Auto-load summary
         setTimeout(() => {
           handleLoadSummary();
         }, 500);
@@ -271,7 +266,7 @@ export default function AddLeafDeductionPage({ navigation }) {
     }
   };
 
-  // Load summary for selected supplier and leaf type - SUMS ALL RECORDS FROM DATABASE
+  // Load summary - THIS IS CRITICAL FOR GROSS VALUE
   const handleLoadSummary = async () => {
     if (!regNo.trim()) {
       setSnackbarMessage('Please select a supplier first');
@@ -294,7 +289,7 @@ export default function AddLeafDeductionPage({ navigation }) {
       if (response.data.success && response.data.data) {
         const data = response.data.data;
         
-        // Store summary totals from database (these are the sums of all records)
+        // Set summary totals from database
         setSummaryTotals({
           bags: data.TotalBags?.toString() || '0',
           gross: data.TotalGross?.toString() || '0',
@@ -303,16 +298,16 @@ export default function AddLeafDeductionPage({ navigation }) {
           water: data.TotalWater?.toString() || '0',
           boiled: data.TotalBoiled?.toString() || '0',
           rejected: data.TotalRejected?.toString() || '0',
-          netWeight: data.TotalNetWeight?.toString() || '0' // Use the database net weight
+          netWeight: data.TotalNetWeight?.toString() || '0'
         });
         
-        setSnackbarMessage(`Summary loaded for ${leafType} leaf`);
+        setSnackbarMessage(`Summary loaded - Gross: ${data.TotalGross} kg`);
         setSnackbarVisible(true);
         
-        // Focus on bag weight after loading
+        // Focus on bag weight
         setTimeout(() => bagWeightRef.current?.focus(), 500);
       } else {
-        // If no data found, reset summary totals to zero
+        // Reset to zero if no data
         setSummaryTotals({
           bags: '0',
           gross: '0',
@@ -328,26 +323,23 @@ export default function AddLeafDeductionPage({ navigation }) {
       }
     } catch (error) {
       console.error('❌ Error loading summary:', error);
-      if (error.response?.status === 404) {
-        setSnackbarMessage('No summary data found for this supplier today');
-      } else {
-        setSnackbarMessage('Failed to load summary');
-      }
+      setSnackbarMessage('Failed to load summary');
       setSnackbarVisible(true);
     } finally {
       setLoadingSummary(false);
     }
   };
 
-  // Handle auto-focus after a delay (500ms) of no typing
+  // Handle input changes with numeric only
   const handleBagWeightChange = (text) => {
-    setCurrentBagWeight(text);
+    const numericText = text.replace(/[^0-9]/g, '');
+    setCurrentBagWeight(numericText);
     
     if (bagWeightTimerRef.current) {
       clearTimeout(bagWeightTimerRef.current);
     }
     
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       bagWeightTimerRef.current = setTimeout(() => {
         if (coarceRef.current) {
           coarceRef.current.focus();
@@ -357,13 +349,14 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleCoarceChange = (text) => {
-    setCurrentCoarce(text);
+    const numericText = text.replace(/[^0-9]/g, '');
+    setCurrentCoarce(numericText);
     
     if (coarceTimerRef.current) {
       clearTimeout(coarceTimerRef.current);
     }
     
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       coarceTimerRef.current = setTimeout(() => {
         if (waterRef.current) {
           waterRef.current.focus();
@@ -373,13 +366,14 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleWaterChange = (text) => {
-    setCurrentWater(text);
+    const numericText = text.replace(/[^0-9]/g, '');
+    setCurrentWater(numericText);
     
     if (waterTimerRef.current) {
       clearTimeout(waterTimerRef.current);
     }
     
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       waterTimerRef.current = setTimeout(() => {
         if (boiledRef.current) {
           boiledRef.current.focus();
@@ -389,13 +383,14 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleBoiledChange = (text) => {
-    setCurrentBoiled(text);
+    const numericText = text.replace(/[^0-9]/g, '');
+    setCurrentBoiled(numericText);
     
     if (boiledTimerRef.current) {
       clearTimeout(boiledTimerRef.current);
     }
     
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       boiledTimerRef.current = setTimeout(() => {
         if (rejectedRef.current) {
           rejectedRef.current.focus();
@@ -405,56 +400,49 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleRejectedChange = (text) => {
-    setCurrentRejected(text);
+    const numericText = text.replace(/[^0-9]/g, '');
+    setCurrentRejected(numericText);
   };
 
-  // Calculate displayed totals: Summary totals + current input values
+  // Display values
   const displayedBagWeight = (parseFloat(summaryTotals.bagWeight) + (parseFloat(currentBagWeight) || 0)).toString();
   const displayedCoarce = (parseFloat(summaryTotals.coarce) + (parseFloat(currentCoarce) || 0)).toString();
   const displayedWater = (parseFloat(summaryTotals.water) + (parseFloat(currentWater) || 0)).toString();
   const displayedBoiled = (parseFloat(summaryTotals.boiled) + (parseFloat(currentBoiled) || 0)).toString();
   const displayedRejected = (parseFloat(summaryTotals.rejected) + (parseFloat(currentRejected) || 0)).toString();
   
-  // Calculate net weight: Database net weight + (Gross - (BagWeight + Coarce + Water + Boiled + Rejected)) for current inputs
+  // Calculate net weight
   const calculateNetWeight = () => {
-    // Start with the database net weight (which already includes all previous deductions)
     const baseNetWeight = parseFloat(summaryTotals.netWeight) || 0;
     
-    // Calculate the impact of current inputs on net weight
     const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
     const currentCoarceVal = parseFloat(currentCoarce) || 0;
     const currentWaterVal = parseFloat(currentWater) || 0;
     const currentBoiledVal = parseFloat(currentBoiled) || 0;
     const currentRejectedVal = parseFloat(currentRejected) || 0;
     
-    // Total current deductions
     const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
                                    currentBoiledVal + currentRejectedVal;
     
-    // The net weight should be the database net weight minus the current deductions
-    // Because each new deduction reduces the net weight
     const netWeight = baseNetWeight - totalCurrentDeductions;
     
-    return Math.max(0, netWeight).toFixed(2); // Ensure non-negative and format to 2 decimal places
+    return Math.max(0, netWeight).toFixed(2);
   };
   
   const displayedNetWeight = calculateNetWeight();
 
   const handleSave = async () => {
-    // Clear any pending timers when saving
     clearTimeout(bagWeightTimerRef.current);
     clearTimeout(coarceTimerRef.current);
     clearTimeout(waterTimerRef.current);
     clearTimeout(boiledTimerRef.current);
 
-    // Validate
     if (!regNo || !name) {
       setSnackbarMessage('Please select a supplier first');
       setSnackbarVisible(true);
       return;
     }
 
-    // Check if at least one deduction value is entered
     if (!currentBagWeight && !currentCoarce && !currentWater && !currentBoiled && !currentRejected) {
       setSnackbarMessage('Please enter at least one deduction value');
       setSnackbarVisible(true);
@@ -463,25 +451,34 @@ export default function AddLeafDeductionPage({ navigation }) {
 
     setLoading(true);
 
-    // Qty should be 1 for each deduction entry (one row per entry)
+    // IMPORTANT: Get the logged-in username from AuthContext
+    // This will be the username entered in the login page
+    const loggedInUserName = user?.username || 'mobile_user';
+    
+    // Get mode from user object (A for Auto, M for Manual)
+    const mode = user?.mode || 'A';
+
+    console.log('💾 Logged in user:', loggedInUserName, 'Mode:', mode);
+
+    // Use correct field names that match dbService expects
     const deductionData = {
       regNo: parseInt(regNo),
       supplierName: name,
       route,
       leafType,
-      Qty: 1, // Each save creates one row
       Gross: parseFloat(summaryTotals.gross) || 0,
       BagWeight: parseFloat(currentBagWeight) || 0,
-      Coarse: parseFloat(currentCoarce) || 0,
+      Coarse: parseFloat(currentCoarce) || 0, // dbService uses Coarse
       Water: parseFloat(currentWater) || 0,
-      Boild: parseFloat(currentBoiled) || 0,
+      Boild: parseFloat(currentBoiled) || 0, // dbService uses Boild
       Rejected: parseFloat(currentRejected) || 0,
       NetWeight: parseFloat(displayedNetWeight) || 0,
-      userName: 'mobile_user',
+      userName: loggedInUserName, // IMPORTANT: Use the logged-in username
       month,
+      mode: mode // Add mode from user
     };
 
-    console.log('💾 Saving deduction:', deductionData);
+    console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode);
 
     try {
       const response = await deductionApi.saveDeduction(deductionData);
@@ -497,13 +494,10 @@ export default function AddLeafDeductionPage({ navigation }) {
         setSnackbarMessage('Deduction saved successfully');
         setSnackbarVisible(true);
         
-        // COMPLETELY CLEAR THE UI - ALL FIELDS
-        // Clear supplier details
+        // Clear all fields
         setRegNo('');
         setName('');
         setRoute('');
-        
-        // Clear summary totals
         setSummaryTotals({
           bags: '0',
           gross: '0',
@@ -514,18 +508,13 @@ export default function AddLeafDeductionPage({ navigation }) {
           rejected: '0',
           netWeight: '0'
         });
-        
-        // Clear current input fields
         setCurrentBagWeight('');
         setCurrentCoarce('');
         setCurrentWater('');
         setCurrentBoiled('');
         setCurrentRejected('');
-        
-        // Clear search tracking
         setLastSearchedRegNo('');
         
-        // Focus on registration number for next entry
         setTimeout(() => regNoRef.current?.focus(), 100);
       }
     } catch (error) {
@@ -538,20 +527,17 @@ export default function AddLeafDeductionPage({ navigation }) {
   };
 
   const handleClear = () => {
-    // Clear any pending timers when clearing
     clearTimeout(bagWeightTimerRef.current);
     clearTimeout(coarceTimerRef.current);
     clearTimeout(waterTimerRef.current);
     clearTimeout(boiledTimerRef.current);
 
-    // Clear only current input fields, keep summary totals
     setCurrentBagWeight('');
     setCurrentCoarce('');
     setCurrentWater('');
     setCurrentBoiled('');
     setCurrentRejected('');
     
-    // Focus on bag weight after clearing
     if (bagWeightRef.current) {
       bagWeightRef.current.focus();
     }
@@ -580,18 +566,16 @@ export default function AddLeafDeductionPage({ navigation }) {
     regNoRef.current?.focus();
   };
 
-  // Handle leaf type change - reload summary
   const handleLeafTypeChange = (value) => {
     setLeafType(value);
     if (regNo && name) {
-      // Reload summary for new leaf type
       setTimeout(() => {
         handleLoadSummary();
       }, 100);
     }
   };
 
-  // Enhanced Date Header
+  // Date Header Component
   const DateHeader = () => {
     const currentDate = new Date();
     const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
@@ -656,7 +640,7 @@ export default function AddLeafDeductionPage({ navigation }) {
     );
   };
 
-  // Input Row Component with ref support
+  // Input Row Component
   const InputRow = ({ 
     label, 
     value, 
@@ -665,7 +649,7 @@ export default function AddLeafDeductionPage({ navigation }) {
     totalLabel, 
     totalValue, 
     totalColor, 
-    keyboardType = 'default', 
+    keyboardType = 'numeric', 
     disabled = false,
     inputRef = null,
     onSubmitEditing = null,
@@ -680,7 +664,7 @@ export default function AddLeafDeductionPage({ navigation }) {
           onChangeText={onChange}
           mode="outlined"
           disabled={disabled}
-          keyboardType={keyboardType}
+          keyboardType="number-pad"
           left={<TextInput.Icon icon={icon} color={paperTheme.colors.primary} />}
           style={styles.smallInput}
           dense={true}
@@ -688,6 +672,7 @@ export default function AddLeafDeductionPage({ navigation }) {
           onSubmitEditing={onSubmitEditing}
           returnKeyType={returnKeyType}
           blurOnSubmit={false}
+          maxLength={6}
           theme={{ 
             colors: { 
               primary: paperTheme.colors.primary,
@@ -746,7 +731,6 @@ export default function AddLeafDeductionPage({ navigation }) {
               data={searchResults}
               keyExtractor={(item, index) => item.RegNo?.toString() || index.toString()}
               renderItem={({ item }) => {
-                // Safely access properties with fallbacks
                 const regNo = item.RegNo || item.regNo || 'N/A';
                 const supplierName = item.SupplierName || item.supplierName || item.name || 'Unknown';
                 const route = item.Route || item.route || '';
@@ -837,6 +821,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                     value={regNo}
                     onChangeText={handleRegNoChange}
                     mode="outlined"
+                    keyboardType="number-pad"
                     left={<TextInput.Icon icon="card-account-details" color={paperTheme.colors.primary} />}
                     style={styles.fullWidthInput}
                     dense={true}
@@ -928,7 +913,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 }}
               />
 
-              {/* Load Summary Button - Now placed after Leaf Information */}
+              {/* Load Summary Button - MUST CLICK THIS FIRST */}
               <Button
                 mode="contained"
                 onPress={handleLoadSummary}
@@ -942,7 +927,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               </Button>
             </View>
 
-            {/* Bags and Gross Row - Now showing summary totals */}
+            {/* Bags and Gross Row - This will show 9 after loading summary */}
             <View style={styles.statsRow}>
               <View style={[styles.statBox, { 
                 backgroundColor: paperTheme.colors.primary + '10',
@@ -980,7 +965,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 totalLabel="Total Bag Weight"
                 totalValue={displayedBagWeight}
                 totalColor={paperTheme.colors.primary}
-                keyboardType="numeric"
                 inputRef={bagWeightRef}
                 returnKeyType="next"
                 onSubmitEditing={() => {
@@ -997,7 +981,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 totalLabel="Total Coarce"
                 totalValue={displayedCoarce}
                 totalColor={paperTheme.colors.error}
-                keyboardType="numeric"
                 inputRef={coarceRef}
                 returnKeyType="next"
                 onSubmitEditing={() => {
@@ -1014,7 +997,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 totalLabel="Total Water"
                 totalValue={displayedWater}
                 totalColor={paperTheme.colors.info}
-                keyboardType="numeric"
                 inputRef={waterRef}
                 returnKeyType="next"
                 onSubmitEditing={() => {
@@ -1031,7 +1013,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 totalLabel="Total Boiled"
                 totalValue={displayedBoiled}
                 totalColor={paperTheme.colors.warning}
-                keyboardType="numeric"
                 inputRef={boiledRef}
                 returnKeyType="next"
                 onSubmitEditing={() => {
@@ -1048,7 +1029,6 @@ export default function AddLeafDeductionPage({ navigation }) {
                 totalLabel="Total Rejected"
                 totalValue={displayedRejected}
                 totalColor={paperTheme.colors.error}
-                keyboardType="numeric"
                 inputRef={rejectedRef}
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
@@ -1057,7 +1037,7 @@ export default function AddLeafDeductionPage({ navigation }) {
 
             <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
-            {/* Net Weight - Calculated from summary + current inputs */}
+            {/* Net Weight */}
             <View style={[styles.netWeightContainer, { 
               backgroundColor: paperTheme.colors.success + '10',
               borderColor: paperTheme.colors.success + '30'
@@ -1122,6 +1102,7 @@ export default function AddLeafDeductionPage({ navigation }) {
   );
 }
 
+// Styles remain EXACTLY the same as your original
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1331,7 +1312,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.5,
   },
-  // New styles for added features
   regNoRow: {
     flexDirection: 'row',
     alignItems: 'center',
