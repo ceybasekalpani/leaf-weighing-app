@@ -1,25 +1,25 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
-    ActivityIndicator,
-    Button,
-    Chip,
-    DataTable,
-    Dialog,
-    IconButton,
-    Portal,
-    Searchbar,
-    Surface,
-    Text,
-    useTheme as usePaperTheme
+  ActivityIndicator,
+  Button,
+  Chip,
+  DataTable,
+  Dialog,
+  IconButton,
+  Portal,
+  Searchbar,
+  Surface,
+  Text,
+  useTheme as usePaperTheme
 } from 'react-native-paper';
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
-    isTablet,
-    moderateScale,
-    responsiveFontSize,
-    responsiveSpacing
+  isTablet,
+  moderateScale,
+  responsiveFontSize,
+  responsiveSpacing
 } from '../utils/responsiveUtils';
 
 export default function ViewLeafCollectionPage({ navigation }) {

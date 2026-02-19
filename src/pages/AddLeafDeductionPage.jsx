@@ -59,13 +59,25 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [route, setRoute] = useState('');
   const [name, setName] = useState('');
   const [leafType, setLeafType] = useState('Normal');
-  const [bags, setBags] = useState('0');
-  const [gross, setGross] = useState('0');
-  const [bagWeight, setBagWeight] = useState('');
-  const [coarce, setCoarce] = useState('');
-  const [water, setWater] = useState('');
-  const [boiled, setBoiled] = useState('');
-  const [rejected, setRejected] = useState('');
+  
+  // Summary totals from database (these are the actual totals from all records)
+  const [summaryTotals, setSummaryTotals] = useState({
+    bags: '0',
+    gross: '0',
+    bagWeight: '0',
+    coarce: '0',
+    water: '0',
+    boiled: '0',
+    rejected: '0',
+    netWeight: '0' // This comes directly from the database
+  });
+  
+  // Current input values (for the new record being added)
+  const [currentBagWeight, setCurrentBagWeight] = useState('');
+  const [currentCoarce, setCurrentCoarce] = useState('');
+  const [currentWater, setCurrentWater] = useState('');
+  const [currentBoiled, setCurrentBoiled] = useState('');
+  const [currentRejected, setCurrentRejected] = useState('');
 
   // Search modal state
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -121,10 +133,13 @@ export default function AddLeafDeductionPage({ navigation }) {
       console.log('✅ Search results:', response.data);
       
       if (response.data.success) {
-        setSearchResults(response.data.data);
+        setSearchResults(response.data.data || []);
+      } else {
+        setSearchResults([]);
       }
     } catch (error) {
       console.error('❌ Error searching suppliers:', error);
+      setSearchResults([]);
       setSnackbarMessage('Failed to search suppliers');
       setSnackbarVisible(true);
     } finally {
@@ -169,10 +184,9 @@ export default function AddLeafDeductionPage({ navigation }) {
       const response = await supplierApi.getSupplierByRegNo(regNoValue);
       console.log('✅ Search response:', response.data);
       
-      if (response.data.success) {
-        setName(response.data.data.supplierName);
+      if (response.data.success && response.data.data) {
+        setName(response.data.data.supplierName || '');
         setRoute(response.data.data.route || '');
-        // Don't show snackbar for auto-search to avoid distraction
       }
     } catch (error) {
       console.error('❌ Error searching supplier:', error);
@@ -194,24 +208,26 @@ export default function AddLeafDeductionPage({ navigation }) {
     setTimeout(() => searchInputRef.current?.focus(), 100);
   };
 
- // Select supplier from search results - Updated to handle different property names
-const selectSupplier = (supplier) => {
-  // Safely access properties regardless of naming convention
-  const regNo = supplier.RegNo || supplier.regNo;
-  const supplierName = supplier.SupplierName || supplier.supplierName || supplier.name;
-  const route = supplier.Route || supplier.route || '';
-  
-  setRegNo(regNo?.toString() || '');
-  setName(supplierName || '');
-  setRoute(route);
-  setLastSearchedRegNo(regNo?.toString() || '');
-  setSearchModalVisible(false);
-  setSnackbarMessage(`Selected: ${supplierName || 'Supplier'}`);
-  setSnackbarVisible(true);
-  
-  // Focus on bag weight after selection
-  setTimeout(() => bagWeightRef.current?.focus(), 500);
-};
+  // Select supplier from search results
+  const selectSupplier = (supplier) => {
+    // Safely access properties regardless of naming convention
+    const regNo = supplier.RegNo || supplier.regNo;
+    const supplierName = supplier.SupplierName || supplier.supplierName || supplier.name;
+    const route = supplier.Route || supplier.route || '';
+    
+    setRegNo(regNo?.toString() || '');
+    setName(supplierName || '');
+    setRoute(route);
+    setLastSearchedRegNo(regNo?.toString() || '');
+    setSearchModalVisible(false);
+    setSnackbarMessage(`Selected: ${supplierName || 'Supplier'}`);
+    setSnackbarVisible(true);
+    
+    // Auto-load summary after selection
+    setTimeout(() => {
+      handleLoadSummary();
+    }, 500);
+  };
 
   // Handle manual search button press
   const handleManualSearch = async () => {
@@ -227,15 +243,22 @@ const selectSupplier = (supplier) => {
       const response = await supplierApi.getSupplierByRegNo(regNo);
       console.log('✅ Search response:', response.data);
       
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         setName(response.data.data.supplierName);
         setRoute(response.data.data.route || '');
         setLastSearchedRegNo(regNo);
         setSnackbarMessage(`Supplier found: ${response.data.data.supplierName}`);
         setSnackbarVisible(true);
         
-        // Auto-focus on bag weight after successful search
-        setTimeout(() => bagWeightRef.current?.focus(), 500);
+        // Auto-load summary after successful search
+        setTimeout(() => {
+          handleLoadSummary();
+        }, 500);
+      } else {
+        setSnackbarMessage('Supplier not found. Please check registration number.');
+        setSnackbarVisible(true);
+        setName('');
+        setRoute('');
       }
     } catch (error) {
       console.error('❌ Error searching supplier:', error);
@@ -248,7 +271,7 @@ const selectSupplier = (supplier) => {
     }
   };
 
-  // Load summary for selected supplier and leaf type
+  // Load summary for selected supplier and leaf type - SUMS ALL RECORDS FROM DATABASE
   const handleLoadSummary = async () => {
     if (!regNo.trim()) {
       setSnackbarMessage('Please select a supplier first');
@@ -268,25 +291,45 @@ const selectSupplier = (supplier) => {
       const response = await deductionApi.getSummary(regNo, leafType);
       console.log('✅ Summary response:', response.data);
       
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         const data = response.data.data;
         
-        // Update all fields with summary data
-        setBags(data.totalBags.toString());
-        setGross(data.totalGross.toString());
-        setBagWeight(data.totalBagWeight ? (data.totalBagWeight / (data.totalBags || 1)).toFixed(2) : '');
-        setCoarce(data.totalCoarce ? (data.totalCoarce / (data.totalBags || 1)).toFixed(2) : '');
-        setWater(data.totalWater ? (data.totalWater / (data.totalBags || 1)).toFixed(2) : '');
-        setBoiled(data.totalBoiled ? (data.totalBoiled / (data.totalBags || 1)).toFixed(2) : '');
-        setRejected(data.totalRejected ? (data.totalRejected / (data.totalBags || 1)).toFixed(2) : '');
+        // Store summary totals from database (these are the sums of all records)
+        setSummaryTotals({
+          bags: data.TotalBags?.toString() || '0',
+          gross: data.TotalGross?.toString() || '0',
+          bagWeight: data.TotalBagWeight?.toString() || '0',
+          coarce: data.TotalCoarse?.toString() || '0',
+          water: data.TotalWater?.toString() || '0',
+          boiled: data.TotalBoiled?.toString() || '0',
+          rejected: data.TotalRejected?.toString() || '0',
+          netWeight: data.TotalNetWeight?.toString() || '0' // Use the database net weight
+        });
         
         setSnackbarMessage(`Summary loaded for ${leafType} leaf`);
+        setSnackbarVisible(true);
+        
+        // Focus on bag weight after loading
+        setTimeout(() => bagWeightRef.current?.focus(), 500);
+      } else {
+        // If no data found, reset summary totals to zero
+        setSummaryTotals({
+          bags: '0',
+          gross: '0',
+          bagWeight: '0',
+          coarce: '0',
+          water: '0',
+          boiled: '0',
+          rejected: '0',
+          netWeight: '0'
+        });
+        setSnackbarMessage(`No ${leafType} leaf transactions found for today`);
         setSnackbarVisible(true);
       }
     } catch (error) {
       console.error('❌ Error loading summary:', error);
       if (error.response?.status === 404) {
-        setSnackbarMessage('No summary data found for this supplier');
+        setSnackbarMessage('No summary data found for this supplier today');
       } else {
         setSnackbarMessage('Failed to load summary');
       }
@@ -298,7 +341,7 @@ const selectSupplier = (supplier) => {
 
   // Handle auto-focus after a delay (500ms) of no typing
   const handleBagWeightChange = (text) => {
-    setBagWeight(text);
+    setCurrentBagWeight(text);
     
     if (bagWeightTimerRef.current) {
       clearTimeout(bagWeightTimerRef.current);
@@ -314,7 +357,7 @@ const selectSupplier = (supplier) => {
   };
 
   const handleCoarceChange = (text) => {
-    setCoarce(text);
+    setCurrentCoarce(text);
     
     if (coarceTimerRef.current) {
       clearTimeout(coarceTimerRef.current);
@@ -330,7 +373,7 @@ const selectSupplier = (supplier) => {
   };
 
   const handleWaterChange = (text) => {
-    setWater(text);
+    setCurrentWater(text);
     
     if (waterTimerRef.current) {
       clearTimeout(waterTimerRef.current);
@@ -346,7 +389,7 @@ const selectSupplier = (supplier) => {
   };
 
   const handleBoiledChange = (text) => {
-    setBoiled(text);
+    setCurrentBoiled(text);
     
     if (boiledTimerRef.current) {
       clearTimeout(boiledTimerRef.current);
@@ -362,26 +405,40 @@ const selectSupplier = (supplier) => {
   };
 
   const handleRejectedChange = (text) => {
-    setRejected(text);
+    setCurrentRejected(text);
   };
 
-  // Calculate totals (with decimals)
-  const totalBagWeight = bagWeight ? (parseInt(bags) * parseFloat(bagWeight || 0)).toFixed(2) : '0';
-  const totalCoarce = coarce ? (parseInt(bags) * parseFloat(coarce || 0)).toFixed(2) : '0';
-  const totalWater = water ? (parseInt(bags) * parseFloat(water || 0)).toFixed(2) : '0';
-  const totalBoiled = boiled ? (parseInt(bags) * parseFloat(boiled || 0)).toFixed(2) : '0';
-  const totalRejected = rejected ? (parseInt(bags) * parseFloat(rejected || 0)).toFixed(2) : '0';
+  // Calculate displayed totals: Summary totals + current input values
+  const displayedBagWeight = (parseFloat(summaryTotals.bagWeight) + (parseFloat(currentBagWeight) || 0)).toString();
+  const displayedCoarce = (parseFloat(summaryTotals.coarce) + (parseFloat(currentCoarce) || 0)).toString();
+  const displayedWater = (parseFloat(summaryTotals.water) + (parseFloat(currentWater) || 0)).toString();
+  const displayedBoiled = (parseFloat(summaryTotals.boiled) + (parseFloat(currentBoiled) || 0)).toString();
+  const displayedRejected = (parseFloat(summaryTotals.rejected) + (parseFloat(currentRejected) || 0)).toString();
   
+  // Calculate net weight: Database net weight + (Gross - (BagWeight + Coarce + Water + Boiled + Rejected)) for current inputs
   const calculateNetWeight = () => {
-    const grossWeight = parseFloat(gross) || 0;
-    const totalBagWt = parseFloat(totalBagWeight) || 0;
-    const totalCoarceWt = parseFloat(totalCoarce) || 0;
-    const totalWaterWt = parseFloat(totalWater) || 0;
-    const totalBoiledWt = parseFloat(totalBoiled) || 0;
-    const totalRejectedWt = parseFloat(totalRejected) || 0;
+    // Start with the database net weight (which already includes all previous deductions)
+    const baseNetWeight = parseFloat(summaryTotals.netWeight) || 0;
     
-    return (grossWeight - totalBagWt - totalCoarceWt - totalWaterWt - totalBoiledWt - totalRejectedWt).toFixed(2);
+    // Calculate the impact of current inputs on net weight
+    const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
+    const currentCoarceVal = parseFloat(currentCoarce) || 0;
+    const currentWaterVal = parseFloat(currentWater) || 0;
+    const currentBoiledVal = parseFloat(currentBoiled) || 0;
+    const currentRejectedVal = parseFloat(currentRejected) || 0;
+    
+    // Total current deductions
+    const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
+                                   currentBoiledVal + currentRejectedVal;
+    
+    // The net weight should be the database net weight minus the current deductions
+    // Because each new deduction reduces the net weight
+    const netWeight = baseNetWeight - totalCurrentDeductions;
+    
+    return Math.max(0, netWeight).toFixed(2); // Ensure non-negative and format to 2 decimal places
   };
+  
+  const displayedNetWeight = calculateNetWeight();
 
   const handleSave = async () => {
     // Clear any pending timers when saving
@@ -397,27 +454,29 @@ const selectSupplier = (supplier) => {
       return;
     }
 
-    if (parseInt(bags) <= 0) {
-      setSnackbarMessage('Number of bags must be greater than 0');
+    // Check if at least one deduction value is entered
+    if (!currentBagWeight && !currentCoarce && !currentWater && !currentBoiled && !currentRejected) {
+      setSnackbarMessage('Please enter at least one deduction value');
       setSnackbarVisible(true);
       return;
     }
 
     setLoading(true);
 
+    // Qty should be 1 for each deduction entry (one row per entry)
     const deductionData = {
       regNo: parseInt(regNo),
       supplierName: name,
       route,
       leafType,
-      bags: parseInt(bags) || 0,
-      gross: parseFloat(gross) || 0,
-      bagWeight: parseFloat(bagWeight) || 0,
-      coarce: parseFloat(coarce) || 0,
-      water: parseFloat(water) || 0,
-      boiled: parseFloat(boiled) || 0,
-      rejected: parseFloat(rejected) || 0,
-      netWeight: parseFloat(calculateNetWeight()) || 0,
+      Qty: 1, // Each save creates one row
+      Gross: parseFloat(summaryTotals.gross) || 0,
+      BagWeight: parseFloat(currentBagWeight) || 0,
+      Coarse: parseFloat(currentCoarce) || 0,
+      Water: parseFloat(currentWater) || 0,
+      Boild: parseFloat(currentBoiled) || 0,
+      Rejected: parseFloat(currentRejected) || 0,
+      NetWeight: parseFloat(displayedNetWeight) || 0,
       userName: 'mobile_user',
       month,
     };
@@ -431,13 +490,43 @@ const selectSupplier = (supplier) => {
       if (response.data.success) {
         addLeafDeduction({
           ...deductionData,
-          ind: response.data.data.ind,
+          ind: response.data.data?.ind,
           timestamp: new Date().toISOString(),
         });
         
         setSnackbarMessage('Deduction saved successfully');
         setSnackbarVisible(true);
-        handleClear();
+        
+        // COMPLETELY CLEAR THE UI - ALL FIELDS
+        // Clear supplier details
+        setRegNo('');
+        setName('');
+        setRoute('');
+        
+        // Clear summary totals
+        setSummaryTotals({
+          bags: '0',
+          gross: '0',
+          bagWeight: '0',
+          coarce: '0',
+          water: '0',
+          boiled: '0',
+          rejected: '0',
+          netWeight: '0'
+        });
+        
+        // Clear current input fields
+        setCurrentBagWeight('');
+        setCurrentCoarce('');
+        setCurrentWater('');
+        setCurrentBoiled('');
+        setCurrentRejected('');
+        
+        // Clear search tracking
+        setLastSearchedRegNo('');
+        
+        // Focus on registration number for next entry
+        setTimeout(() => regNoRef.current?.focus(), 100);
       }
     } catch (error) {
       console.error('❌ Error saving deduction:', error);
@@ -455,12 +544,12 @@ const selectSupplier = (supplier) => {
     clearTimeout(waterTimerRef.current);
     clearTimeout(boiledTimerRef.current);
 
-    // Clear only deduction fields, keep supplier info
-    setBagWeight('');
-    setCoarce('');
-    setWater('');
-    setBoiled('');
-    setRejected('');
+    // Clear only current input fields, keep summary totals
+    setCurrentBagWeight('');
+    setCurrentCoarce('');
+    setCurrentWater('');
+    setCurrentBoiled('');
+    setCurrentRejected('');
     
     // Focus on bag weight after clearing
     if (bagWeightRef.current) {
@@ -472,18 +561,37 @@ const selectSupplier = (supplier) => {
     setRegNo('');
     setName('');
     setRoute('');
-    setBags('0');
-    setGross('0');
-    setBagWeight('');
-    setCoarce('');
-    setWater('');
-    setBoiled('');
-    setRejected('');
+    setSummaryTotals({
+      bags: '0',
+      gross: '0',
+      bagWeight: '0',
+      coarce: '0',
+      water: '0',
+      boiled: '0',
+      rejected: '0',
+      netWeight: '0'
+    });
+    setCurrentBagWeight('');
+    setCurrentCoarce('');
+    setCurrentWater('');
+    setCurrentBoiled('');
+    setCurrentRejected('');
     setLastSearchedRegNo('');
     regNoRef.current?.focus();
   };
 
-  // Enhanced Date Header with Today's date and Current month styling
+  // Handle leaf type change - reload summary
+  const handleLeafTypeChange = (value) => {
+    setLeafType(value);
+    if (regNo && name) {
+      // Reload summary for new leaf type
+      setTimeout(() => {
+        handleLoadSummary();
+      }, 100);
+    }
+  };
+
+  // Enhanced Date Header
   const DateHeader = () => {
     const currentDate = new Date();
     const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
@@ -592,94 +700,96 @@ const selectSupplier = (supplier) => {
       </View>
       <View style={[styles.totalContainer, { flex: 0.8 }]}>
         <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
-        <Text style={[styles.totalValue, { color: totalColor }]}>{totalValue} kg</Text>
+        <Text style={[styles.totalValue, { color: totalColor }]}>
+          {totalValue} kg
+        </Text>
       </View>
     </View>
   );
 
-  // Search Modal Component - Updated with safe property access
-const SearchModal = () => (
-  <Modal
-    visible={searchModalVisible}
-    animationType="slide"
-    transparent={true}
-    onRequestClose={() => setSearchModalVisible(false)}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
-          <IconButton 
-            icon="close" 
-            size={24} 
-            onPress={() => setSearchModalVisible(false)}
-            iconColor={paperTheme.colors.error}
-          />
-        </View>
-
-        <View style={styles.modalSearchContainer}>
-          <TextInput
-            ref={searchInputRef}
-            placeholder="Type registration number or name..."
-            value={searchQuery}
-            onChangeText={handleSearchInputChange}
-            mode="outlined"
-            left={<TextInput.Icon icon="magnify" />}
-            right={searchLoading ? <ActivityIndicator size="small" /> : null}
-            style={styles.modalSearchInput}
-            autoFocus={true}
-          />
-        </View>
-
-        {searchResults.length > 0 ? (
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item, index) => item.RegNo?.toString() || index.toString()}
-            renderItem={({ item }) => {
-              // Safely access properties with fallbacks
-              const regNo = item.RegNo || item.regNo || 'N/A';
-              const supplierName = item.SupplierName || item.supplierName || item.name || 'Unknown';
-              const route = item.Route || item.route || '';
-              
-              return (
-                <TouchableOpacity
-                  style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
-                  onPress={() => selectSupplier({
-                    RegNo: regNo,
-                    SupplierName: supplierName,
-                    Route: route
-                  })}
-                >
-                  <View style={styles.searchResultLeft}>
-                    <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
-                      #{regNo}
-                    </Text>
-                    <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
-                      {supplierName}
-                    </Text>
-                    {route ? (
-                      <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
-                        Route: {route}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
-                </TouchableOpacity>
-              );
-            }}
-            style={styles.searchResultsList}
-          />
-        ) : searchQuery.length > 0 && !searchLoading ? (
-          <View style={styles.noResultsContainer}>
-            <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
-              No suppliers found
-            </Text>
+  // Search Modal Component
+  const SearchModal = () => (
+    <Modal
+      visible={searchModalVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setSearchModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
+            <IconButton 
+              icon="close" 
+              size={24} 
+              onPress={() => setSearchModalVisible(false)}
+              iconColor={paperTheme.colors.error}
+            />
           </View>
-        ) : null}
+
+          <View style={styles.modalSearchContainer}>
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Type registration number or name..."
+              value={searchQuery}
+              onChangeText={handleSearchInputChange}
+              mode="outlined"
+              left={<TextInput.Icon icon="magnify" />}
+              right={searchLoading ? <ActivityIndicator size="small" /> : null}
+              style={styles.modalSearchInput}
+              autoFocus={true}
+            />
+          </View>
+
+          {searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item, index) => item.RegNo?.toString() || index.toString()}
+              renderItem={({ item }) => {
+                // Safely access properties with fallbacks
+                const regNo = item.RegNo || item.regNo || 'N/A';
+                const supplierName = item.SupplierName || item.supplierName || item.name || 'Unknown';
+                const route = item.Route || item.route || '';
+                
+                return (
+                  <TouchableOpacity
+                    style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
+                    onPress={() => selectSupplier({
+                      RegNo: regNo,
+                      SupplierName: supplierName,
+                      Route: route
+                    })}
+                  >
+                    <View style={styles.searchResultLeft}>
+                      <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
+                        #{regNo}
+                      </Text>
+                      <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
+                        {supplierName}
+                      </Text>
+                      {route ? (
+                        <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
+                          Route: {route}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
+                  </TouchableOpacity>
+                );
+              }}
+              style={styles.searchResultsList}
+            />
+          ) : searchQuery.length > 0 && !searchLoading ? (
+            <View style={styles.noResultsContainer}>
+              <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
+                No suppliers found
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
-    </View>
-  </Modal>
-);
+    </Modal>
+  );
 
   return (
     <KeyboardAvoidingView 
@@ -794,7 +904,7 @@ const SearchModal = () => (
               
               <SegmentedButtons
                 value={leafType}
-                onValueChange={setLeafType}
+                onValueChange={handleLeafTypeChange}
                 buttons={[
                   { 
                     value: 'Super', 
@@ -832,7 +942,7 @@ const SearchModal = () => (
               </Button>
             </View>
 
-            {/* Bags and Gross Row */}
+            {/* Bags and Gross Row - Now showing summary totals */}
             <View style={styles.statsRow}>
               <View style={[styles.statBox, { 
                 backgroundColor: paperTheme.colors.primary + '10',
@@ -841,7 +951,7 @@ const SearchModal = () => (
                 <IconButton icon="sack" size={24} iconColor={paperTheme.colors.primary} style={styles.statIcon} />
                 <View>
                   <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Total Bags</Text>
-                  <Text style={[styles.statValue, { color: paperTheme.colors.primary }]}>{bags}</Text>
+                  <Text style={[styles.statValue, { color: paperTheme.colors.primary }]}>{summaryTotals.bags}</Text>
                 </View>
               </View>
               <View style={[styles.statBox, { 
@@ -851,7 +961,7 @@ const SearchModal = () => (
                 <IconButton icon="weight" size={24} iconColor={paperTheme.colors.success} style={styles.statIcon} />
                 <View>
                   <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Gross (kg)</Text>
-                  <Text style={[styles.statValue, { color: paperTheme.colors.success }]}>{gross}</Text>
+                  <Text style={[styles.statValue, { color: paperTheme.colors.success }]}>{summaryTotals.gross}</Text>
                 </View>
               </View>
             </View>
@@ -864,11 +974,11 @@ const SearchModal = () => (
               
               <InputRow
                 label="Bag Weight"
-                value={bagWeight}
+                value={currentBagWeight}
                 onChange={handleBagWeightChange}
                 icon="weight-kilogram"
                 totalLabel="Total Bag Weight"
-                totalValue={totalBagWeight}
+                totalValue={displayedBagWeight}
                 totalColor={paperTheme.colors.primary}
                 keyboardType="numeric"
                 inputRef={bagWeightRef}
@@ -881,11 +991,11 @@ const SearchModal = () => (
 
               <InputRow
                 label="Coarce"
-                value={coarce}
+                value={currentCoarce}
                 onChange={handleCoarceChange}
                 icon="leaf-off"
                 totalLabel="Total Coarce"
-                totalValue={totalCoarce}
+                totalValue={displayedCoarce}
                 totalColor={paperTheme.colors.error}
                 keyboardType="numeric"
                 inputRef={coarceRef}
@@ -898,11 +1008,11 @@ const SearchModal = () => (
 
               <InputRow
                 label="Water"
-                value={water}
+                value={currentWater}
                 onChange={handleWaterChange}
                 icon="water"
                 totalLabel="Total Water"
-                totalValue={totalWater}
+                totalValue={displayedWater}
                 totalColor={paperTheme.colors.info}
                 keyboardType="numeric"
                 inputRef={waterRef}
@@ -915,11 +1025,11 @@ const SearchModal = () => (
 
               <InputRow
                 label="Boiled"
-                value={boiled}
+                value={currentBoiled}
                 onChange={handleBoiledChange}
                 icon="fire"
                 totalLabel="Total Boiled"
-                totalValue={totalBoiled}
+                totalValue={displayedBoiled}
                 totalColor={paperTheme.colors.warning}
                 keyboardType="numeric"
                 inputRef={boiledRef}
@@ -932,11 +1042,11 @@ const SearchModal = () => (
 
               <InputRow
                 label="Rejected"
-                value={rejected}
+                value={currentRejected}
                 onChange={handleRejectedChange}
                 icon="close-circle"
                 totalLabel="Total Rejected"
-                totalValue={totalRejected}
+                totalValue={displayedRejected}
                 totalColor={paperTheme.colors.error}
                 keyboardType="numeric"
                 inputRef={rejectedRef}
@@ -947,7 +1057,7 @@ const SearchModal = () => (
 
             <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
-            {/* Net Weight */}
+            {/* Net Weight - Calculated from summary + current inputs */}
             <View style={[styles.netWeightContainer, { 
               backgroundColor: paperTheme.colors.success + '10',
               borderColor: paperTheme.colors.success + '30'
@@ -957,7 +1067,7 @@ const SearchModal = () => (
                 <Text style={[styles.netWeightLabel, { color: paperTheme.colors.text }]}>Net Weight</Text>
               </View>
               <Text style={[styles.netWeightValue, { color: paperTheme.colors.success }]}>
-                {calculateNetWeight()} kg
+                {displayedNetWeight} kg
               </Text>
             </View>
 

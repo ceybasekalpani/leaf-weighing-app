@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-// Use your computer's IP address for physical device
-// Your IP is: 192.168.8.108
-const BASE_URL = 'http://192.168.8.108:5000/api'; // Updated with your actual IP
+const BASE_URL = 'http://192.168.8.108:5000/api'; 
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -17,6 +15,8 @@ api.interceptors.request.use(
   (config) => {
     console.log('📤 Making request to:', config.url);
     console.log('📤 Full URL:', `${BASE_URL}${config.url}`);
+    console.log('📤 Headers:', config.headers);
+    console.log('📤 Method:', config.method);
     return config;
   },
   (error) => {
@@ -46,7 +46,15 @@ export const supplierApi = {
 };
 
 export const deductionApi = {
-  getSummary: (regNo, leafType) => api.get(`/deductions/summary/${regNo}/${leafType}`),
+  // Get today's summary for a supplier with leaf type header
+  getSummary: (regNo, leafType) => {
+    console.log(`🔍 Getting TODAY'S summary for RegNo: ${regNo}, LeafType: ${leafType} (sending in header)`);
+    return api.get(`/deductions/summary/${regNo}`, {
+      headers: {
+        'leaf-type': leafType
+      }
+    });
+  },
   saveDeduction: (data) => api.post('/deductions', data),
   getTodayTransactions: (regNo) => api.get(`/deductions/today/${regNo}`),
 };

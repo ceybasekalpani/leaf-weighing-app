@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'; // Add useRef and useEffect
+import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   Button,
@@ -334,10 +334,11 @@ export default function AddLeafCountPage() {
                 onDismiss={() => setShowDateDialog(false)} 
                 style={[styles.dateDialog, { backgroundColor: paperTheme.colors.surface }]}
               >
-                <Dialog.Title style={styles.dialogTitle}>
+                {/* FIX: Replace Dialog.Title with custom header */}
+                <View style={styles.dialogTitleContainer}>
                   <IconButton icon="calendar" size={24} iconColor={paperTheme.colors.primary} />
-                  <Text style={styles.dialogTitleText}>Select Date</Text>
-                </Dialog.Title>
+                  <Text style={[styles.dialogTitleText, { color: paperTheme.colors.primary }]}>Select Date</Text>
+                </View>
                 <Dialog.Content style={styles.dialogContent}>
                   {/* Simplified - only dates in square format */}
                   <View style={styles.simpleCalendarContainer}>
@@ -672,11 +673,13 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(20),
     elevation: 5,
   },
-  dialogTitle: {
+  // New style for custom dialog header
+  dialogTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.md,
   },
   dialogTitleText: {
     fontSize: responsiveFontSize(20),
