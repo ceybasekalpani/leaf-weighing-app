@@ -22,7 +22,7 @@ import {
   useTheme as usePaperTheme
 } from 'react-native-paper';
 import { deductionApi, supplierApi } from '../api/leafApi';
-import { useAuth } from '../context/AuthContext'; // IMPORTANT: Add this import
+import { useAuth } from '../context/AuthContext';
 import { useLeafData } from '../context/LeafDataContext';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
@@ -35,7 +35,7 @@ import {
 export default function AddLeafDeductionPage({ navigation }) {
   const paperTheme = usePaperTheme();
   const { addLeafDeduction } = useLeafData();
-  const { user } = useAuth(); // IMPORTANT: Get logged-in user from AuthContext
+  const { user } = useAuth();
   const isTabletDevice = isTablet();
 
   // Create refs for each input field
@@ -80,6 +80,15 @@ export default function AddLeafDeductionPage({ navigation }) {
   const [currentWater, setCurrentWater] = useState('');
   const [currentBoiled, setCurrentBoiled] = useState('');
   const [currentRejected, setCurrentRejected] = useState('');
+
+  // Track original values to detect changes
+  const [originalValues, setOriginalValues] = useState({
+    bagWeight: '',
+    coarce: '',
+    water: '',
+    boiled: '',
+    rejected: ''
+  });
 
   // Search modal state
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -294,14 +303,29 @@ export default function AddLeafDeductionPage({ navigation }) {
           bags: data.TotalBags?.toString() || '0',
           gross: data.TotalGross?.toString() || '0',
           bagWeight: data.TotalBagWeight?.toString() || '0',
-          coarce: data.TotalCoarse?.toString() || '0',
+          coarce: data.TotalCoarse?.toString() || '0', // Note: API returns Coarse
           water: data.TotalWater?.toString() || '0',
           boiled: data.TotalBoiled?.toString() || '0',
           rejected: data.TotalRejected?.toString() || '0',
           netWeight: data.TotalNetWeight?.toString() || '0'
         });
         
-        setSnackbarMessage(`Summary loaded - Gross: ${data.TotalGross} kg`);
+        // Reset current input values and original values
+        setCurrentBagWeight('');
+        setCurrentCoarce('');
+        setCurrentWater('');
+        setCurrentBoiled('');
+        setCurrentRejected('');
+        
+        setOriginalValues({
+          bagWeight: '',
+          coarce: '',
+          water: '',
+          boiled: '',
+          rejected: ''
+        });
+        
+        setSnackbarMessage(`Summary loaded - Gross: ${data.TotalGross || 0} kg, Net: ${data.TotalNetWeight || 0} kg`);
         setSnackbarVisible(true);
         
         // Focus on bag weight
@@ -318,6 +342,20 @@ export default function AddLeafDeductionPage({ navigation }) {
           rejected: '0',
           netWeight: '0'
         });
+        setCurrentBagWeight('');
+        setCurrentCoarce('');
+        setCurrentWater('');
+        setCurrentBoiled('');
+        setCurrentRejected('');
+        
+        setOriginalValues({
+          bagWeight: '',
+          coarce: '',
+          water: '',
+          boiled: '',
+          rejected: ''
+        });
+        
         setSnackbarMessage(`No ${leafType} leaf transactions found for today`);
         setSnackbarVisible(true);
       }
@@ -410,121 +448,196 @@ export default function AddLeafDeductionPage({ navigation }) {
   const displayedWater = (parseFloat(summaryTotals.water) + (parseFloat(currentWater) || 0)).toString();
   const displayedBoiled = (parseFloat(summaryTotals.boiled) + (parseFloat(currentBoiled) || 0)).toString();
   const displayedRejected = (parseFloat(summaryTotals.rejected) + (parseFloat(currentRejected) || 0)).toString();
+ // Calculate net weight for UI display only - DB will store 0 for deduction entries
+const calculateNetWeight = () => {
+  const baseNetWeight = parseFloat(summaryTotals.netWeight) || 0;
   
-  // Calculate net weight
-  const calculateNetWeight = () => {
-    const baseNetWeight = parseFloat(summaryTotals.netWeight) || 0;
-    
-    const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
-    const currentCoarceVal = parseFloat(currentCoarce) || 0;
-    const currentWaterVal = parseFloat(currentWater) || 0;
-    const currentBoiledVal = parseFloat(currentBoiled) || 0;
-    const currentRejectedVal = parseFloat(currentRejected) || 0;
-    
-    const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
-                                   currentBoiledVal + currentRejectedVal;
-    
-    const netWeight = baseNetWeight - totalCurrentDeductions;
-    
-    return Math.max(0, netWeight).toFixed(2);
-  };
+  // Calculate total current deductions for net weight update
+  const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
+  const currentCoarceVal = parseFloat(currentCoarce) || 0;
+  const currentWaterVal = parseFloat(currentWater) || 0;
+  const currentBoiledVal = parseFloat(currentBoiled) || 0;
+  const currentRejectedVal = parseFloat(currentRejected) || 0;
+
+  const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
+                                 currentBoiledVal + currentRejectedVal;
+  
+  const netWeight = baseNetWeight - totalCurrentDeductions;
+  
+  return Math.max(0, netWeight).toFixed(2);
+};
   
   const displayedNetWeight = calculateNetWeight();
 
-  const handleSave = async () => {
-    clearTimeout(bagWeightTimerRef.current);
-    clearTimeout(coarceTimerRef.current);
-    clearTimeout(waterTimerRef.current);
-    clearTimeout(boiledTimerRef.current);
+ // Check if a value has changed from original
+const hasValueChanged = () => {
+  const bagWeightChanged = parseFloat(currentBagWeight || 0) !== parseFloat(originalValues.bagWeight || 0);
+  const coarceChanged = parseFloat(currentCoarce || 0) !== parseFloat(originalValues.coarce || 0);
+  const waterChanged = parseFloat(currentWater || 0) !== parseFloat(originalValues.water || 0);
+  const boiledChanged = parseFloat(currentBoiled || 0) !== parseFloat(originalValues.boiled || 0);
+  const rejectedChanged = parseFloat(currentRejected || 0) !== parseFloat(originalValues.rejected || 0);
+  
+  const changed = bagWeightChanged || coarceChanged || waterChanged || boiledChanged || rejectedChanged;
+  
+  // Improved debugging
+  console.log('hasValueChanged:', changed, {
+    bagWeight: { current: currentBagWeight, original: originalValues.bagWeight, changed: bagWeightChanged },
+    coarce: { current: currentCoarce, original: originalValues.coarce, changed: coarceChanged },
+    water: { current: currentWater, original: originalValues.water, changed: waterChanged },
+    boiled: { current: currentBoiled, original: originalValues.boiled, changed: boiledChanged },
+    rejected: { current: currentRejected, original: originalValues.rejected, changed: rejectedChanged }
+  });
+  
+  return changed;
+};
 
-    if (!regNo || !name) {
-      setSnackbarMessage('Please select a supplier first');
-      setSnackbarVisible(true);
-      return;
-    }
 
-    if (!currentBagWeight && !currentCoarce && !currentWater && !currentBoiled && !currentRejected) {
-      setSnackbarMessage('Please enter at least one deduction value');
-      setSnackbarVisible(true);
-      return;
-    }
+const handleSave = async () => {
+  clearTimeout(bagWeightTimerRef.current);
+  clearTimeout(coarceTimerRef.current);
+  clearTimeout(waterTimerRef.current);
+  clearTimeout(boiledTimerRef.current);
 
-    setLoading(true);
+  if (!regNo || !name) {
+    setSnackbarMessage('Please select a supplier first');
+    setSnackbarVisible(true);
+    return;
+  }
 
-    // IMPORTANT: Get the logged-in username from AuthContext
-    // This will be the username entered in the login page
-    const loggedInUserName = user?.username || 'mobile_user';
-    
-    // Get mode from user object (A for Auto, M for Manual)
-    const mode = user?.mode || 'A';
+  if (!currentBagWeight && !currentCoarce && !currentWater && !currentBoiled && !currentRejected) {
+    setSnackbarMessage('Please enter at least one deduction value');
+    setSnackbarVisible(true);
+    return;
+  }
 
-    console.log('💾 Logged in user:', loggedInUserName, 'Mode:', mode);
+  // Check if any values have changed from original
+  if (!hasValueChanged()) {
+    setSnackbarMessage('No changes to save');
+    setSnackbarVisible(true);
+    return;
+  }
 
-    // Use correct field names that match dbService expects
-    const deductionData = {
-      regNo: parseInt(regNo),
-      supplierName: name,
-      route,
-      leafType,
-      Gross: parseFloat(summaryTotals.gross) || 0,
-      BagWeight: parseFloat(currentBagWeight) || 0,
-      Coarse: parseFloat(currentCoarce) || 0, // dbService uses Coarse
-      Water: parseFloat(currentWater) || 0,
-      Boild: parseFloat(currentBoiled) || 0, // dbService uses Boild
-      Rejected: parseFloat(currentRejected) || 0,
-      NetWeight: parseFloat(displayedNetWeight) || 0,
-      userName: loggedInUserName, // IMPORTANT: Use the logged-in username
-      month,
-      mode: mode // Add mode from user
-    };
+  setLoading(true);
 
-    console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode);
+  // Get the logged-in username from AuthContext
+  const loggedInUserName = user?.username || 'mobile_user';
+  
+  // Set mode to 'App' as requested
+  const mode = 'App';
 
-    try {
-      const response = await deductionApi.saveDeduction(deductionData);
-      console.log('✅ Save response:', response.data);
-      
-      if (response.data.success) {
-        addLeafDeduction({
-          ...deductionData,
-          ind: response.data.data?.ind,
-          timestamp: new Date().toISOString(),
-        });
-        
-        setSnackbarMessage('Deduction saved successfully');
-        setSnackbarVisible(true);
-        
-        // Clear all fields
-        setRegNo('');
-        setName('');
-        setRoute('');
-        setSummaryTotals({
-          bags: '0',
-          gross: '0',
-          bagWeight: '0',
-          coarce: '0',
-          water: '0',
-          boiled: '0',
-          rejected: '0',
-          netWeight: '0'
-        });
-        setCurrentBagWeight('');
-        setCurrentCoarce('');
-        setCurrentWater('');
-        setCurrentBoiled('');
-        setCurrentRejected('');
-        setLastSearchedRegNo('');
-        
-        setTimeout(() => regNoRef.current?.focus(), 100);
-      }
-    } catch (error) {
-      console.error('❌ Error saving deduction:', error);
-      setSnackbarMessage('Failed to save deduction. Please try again.');
-      setSnackbarVisible(true);
-    } finally {
-      setLoading(false);
-    }
+  console.log('💾 Logged in user:', loggedInUserName, 'Mode:', mode);
+
+  // Calculate current deduction values
+  const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
+  const currentCoarceVal = parseFloat(currentCoarce) || 0;
+  const currentWaterVal = parseFloat(currentWater) || 0;
+  const currentBoiledVal = parseFloat(currentBoiled) || 0;
+  const currentRejectedVal = parseFloat(currentRejected) || 0;
+
+  // FIX: Add this line to calculate total deductions
+  const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
+                                 currentBoiledVal + currentRejectedVal;
+
+  // Prepare deduction data - Gross and NetWeight set to 0 as required
+  const deductionData = {
+    regNo: parseInt(regNo),
+    supplierName: name,
+    route,
+    leafType,
+    Gross: 0, // Always 0 for deduction entries
+    NetWeight: 0, // Always 0 for deduction entries
+    userName: loggedInUserName,
+    month,
+    mode: mode
   };
+
+  // Only add fields that have values (these are the individual deduction values)
+  if (currentBagWeightVal > 0) {
+    deductionData.BagWeight = currentBagWeightVal;
+  }
+  
+  if (currentCoarceVal > 0) {
+    deductionData.Coarse = currentCoarceVal; // dbService uses Coarse
+  }
+  
+  if (currentWaterVal > 0) {
+    deductionData.Water = currentWaterVal;
+  }
+  
+  if (currentBoiledVal > 0) {
+    deductionData.Boild = currentBoiledVal; // dbService uses Boild
+  }
+  
+  if (currentRejectedVal > 0) {
+    deductionData.Rejected = currentRejectedVal;
+  }
+
+  console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode);
+  console.log('💾 Deduction data:', deductionData);
+
+  try {
+    const response = await deductionApi.saveDeduction(deductionData);
+    console.log('✅ Save response:', response.data);
+    
+    if (response.data.success) {
+      addLeafDeduction({
+        ...deductionData,
+        ind: response.data.data?.ind,
+        timestamp: new Date().toISOString(),
+      });
+      
+      setSnackbarMessage('Deduction saved successfully');
+      setSnackbarVisible(true);
+      
+      // FIX: Clear ALL fields including supplier information
+      // Reset supplier fields
+      setRegNo('');
+      setName('');
+      setRoute('');
+      setLastSearchedRegNo('');
+      
+      // Reset summary totals to ZERO (not updated with new values)
+      setSummaryTotals({
+        bags: '0',
+        gross: '0',
+        bagWeight: '0',
+        coarce: '0',
+        water: '0',
+        boiled: '0',
+        rejected: '0',
+        netWeight: '0'
+      });
+      
+      // Clear current input fields
+      setCurrentBagWeight('');
+      setCurrentCoarce('');
+      setCurrentWater('');
+      setCurrentBoiled('');
+      setCurrentRejected('');
+      
+      // Reset original values
+      setOriginalValues({
+        bagWeight: '',
+        coarce: '',
+        water: '',
+        boiled: '',
+        rejected: ''
+      });
+      
+      // Focus back on registration number for next entry
+      setTimeout(() => regNoRef.current?.focus(), 500);
+    } else {
+      setSnackbarMessage(response.data.message || 'Failed to save deduction');
+      setSnackbarVisible(true);
+    }
+  } catch (error) {
+    console.error('❌ Error saving deduction:', error);
+    setSnackbarMessage(error.response?.data?.message || 'Failed to save deduction. Please try again.');
+    setSnackbarVisible(true);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleClear = () => {
     clearTimeout(bagWeightTimerRef.current);
@@ -537,6 +650,15 @@ export default function AddLeafDeductionPage({ navigation }) {
     setCurrentWater('');
     setCurrentBoiled('');
     setCurrentRejected('');
+    
+    // Reset original values to empty
+    setOriginalValues({
+      bagWeight: '',
+      coarce: '',
+      water: '',
+      boiled: '',
+      rejected: ''
+    });
     
     if (bagWeightRef.current) {
       bagWeightRef.current.focus();
@@ -562,6 +684,13 @@ export default function AddLeafDeductionPage({ navigation }) {
     setCurrentWater('');
     setCurrentBoiled('');
     setCurrentRejected('');
+    setOriginalValues({
+      bagWeight: '',
+      coarce: '',
+      water: '',
+      boiled: '',
+      rejected: ''
+    });
     setLastSearchedRegNo('');
     regNoRef.current?.focus();
   };
@@ -693,87 +822,93 @@ export default function AddLeafDeductionPage({ navigation }) {
   );
 
   // Search Modal Component
-  const SearchModal = () => (
-    <Modal
-      visible={searchModalVisible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setSearchModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
-            <IconButton 
-              icon="close" 
-              size={24} 
-              onPress={() => setSearchModalVisible(false)}
-              iconColor={paperTheme.colors.error}
-            />
-          </View>
-
-          <View style={styles.modalSearchContainer}>
-            <TextInput
-              ref={searchInputRef}
-              placeholder="Type registration number or name..."
-              value={searchQuery}
-              onChangeText={handleSearchInputChange}
-              mode="outlined"
-              left={<TextInput.Icon icon="magnify" />}
-              right={searchLoading ? <ActivityIndicator size="small" /> : null}
-              style={styles.modalSearchInput}
-              autoFocus={true}
-            />
-          </View>
-
-          {searchResults.length > 0 ? (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item, index) => item.RegNo?.toString() || index.toString()}
-              renderItem={({ item }) => {
-                const regNo = item.RegNo || item.regNo || 'N/A';
-                const supplierName = item.SupplierName || item.supplierName || item.name || 'Unknown';
-                const route = item.Route || item.route || '';
-                
-                return (
-                  <TouchableOpacity
-                    style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
-                    onPress={() => selectSupplier({
-                      RegNo: regNo,
-                      SupplierName: supplierName,
-                      Route: route
-                    })}
-                  >
-                    <View style={styles.searchResultLeft}>
-                      <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
-                        #{regNo}
-                      </Text>
-                      <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
-                        {supplierName}
-                      </Text>
-                      {route ? (
-                        <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
-                          Route: {route}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
-                  </TouchableOpacity>
-                );
-              }}
-              style={styles.searchResultsList}
-            />
-          ) : searchQuery.length > 0 && !searchLoading ? (
-            <View style={styles.noResultsContainer}>
-              <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
-                No suppliers found
-              </Text>
-            </View>
-          ) : null}
+ // Search Modal Component - UPDATED with safer property access
+const SearchModal = () => (
+  <Modal
+    visible={searchModalVisible}
+    animationType="slide"
+    transparent={true}
+    onRequestClose={() => setSearchModalVisible(false)}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
+          <IconButton 
+            icon="close" 
+            size={24} 
+            onPress={() => setSearchModalVisible(false)}
+            iconColor={paperTheme.colors.error}
+          />
         </View>
+
+        <View style={styles.modalSearchContainer}>
+          <TextInput
+            ref={searchInputRef}
+            placeholder="Type registration number or name..."
+            value={searchQuery}
+            onChangeText={handleSearchInputChange}
+            mode="outlined"
+            left={<TextInput.Icon icon="magnify" />}
+            right={searchLoading ? <ActivityIndicator size="small" /> : null}
+            style={styles.modalSearchInput}
+            autoFocus={true}
+          />
+        </View>
+
+        {searchResults.length > 0 ? (
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item, index) => {
+              // FIX: Safely get the key with fallback to index
+              const key = item?.RegNo?.toString() || item?.regNo?.toString() || `item-${index}`;
+              return key;
+            }}
+            renderItem={({ item }) => {
+              // FIX: Safely extract values with optional chaining and fallbacks
+              const regNo = item?.RegNo || item?.regNo || 'N/A';
+              const supplierName = item?.SupplierName || item?.supplierName || item?.name || 'Unknown';
+              const route = item?.Route || item?.route || '';
+              
+              return (
+                <TouchableOpacity
+                  style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
+                  onPress={() => selectSupplier({
+                    RegNo: regNo,
+                    SupplierName: supplierName,
+                    Route: route
+                  })}
+                >
+                  <View style={styles.searchResultLeft}>
+                    <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
+                      #{regNo}
+                    </Text>
+                    <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
+                      {supplierName}
+                    </Text>
+                    {route ? (
+                      <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
+                        Route: {route}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
+                </TouchableOpacity>
+              );
+            }}
+            style={styles.searchResultsList}
+          />
+        ) : searchQuery.length > 0 && !searchLoading ? (
+          <View style={styles.noResultsContainer}>
+            <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
+              No suppliers found
+            </Text>
+          </View>
+        ) : null}
       </View>
-    </Modal>
-  );
+    </View>
+  </Modal>
+);
 
   return (
     <KeyboardAvoidingView 
@@ -1037,7 +1172,7 @@ export default function AddLeafDeductionPage({ navigation }) {
 
             <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
-            {/* Net Weight */}
+            {/* Net Weight - UI Display Only */}
             <View style={[styles.netWeightContainer, { 
               backgroundColor: paperTheme.colors.success + '10',
               borderColor: paperTheme.colors.success + '30'
@@ -1051,6 +1186,8 @@ export default function AddLeafDeductionPage({ navigation }) {
               </Text>
             </View>
 
+           
+
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <Button 
@@ -1062,7 +1199,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 labelStyle={[styles.buttonLabel, { color: '#FFFFFF' }]}
                 contentStyle={styles.buttonContent}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !hasValueChanged()}
               >
                 Save
               </Button>
@@ -1102,7 +1239,6 @@ export default function AddLeafDeductionPage({ navigation }) {
   );
 }
 
-// Styles remain EXACTLY the same as your original
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1267,7 +1403,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.lg,
+    marginBottom: responsiveSpacing.md,
     padding: responsiveSpacing.md,
     borderRadius: moderateScale(16),
     borderWidth: 1,
@@ -1284,6 +1420,12 @@ const styles = StyleSheet.create({
   netWeightValue: {
     fontSize: responsiveFontSize(28),
     fontWeight: 'bold',
+  },
+  noteText: {
+    fontSize: responsiveFontSize(12),
+    textAlign: 'center',
+    marginBottom: responsiveSpacing.md,
+    fontStyle: 'italic'
   },
   buttonContainer: {
     flexDirection: 'row',

@@ -111,23 +111,29 @@ export default function ViewLeafCollectionPage({ navigation }) {
   }, [navigation]);
 
   // Combine all collections
-  const allCollections = [...leafCollections, ...leafDeductions].sort((a, b) => 
-    new Date(b.timestamp) - new Date(a.timestamp)
+  // Combine all collections
+const allCollections = [...leafCollections, ...leafDeductions].sort((a, b) => 
+  new Date(b.timestamp) - new Date(a.timestamp)
+);
+
+// FIXED: Safely handle when regNo is a number
+const filteredCollections = allCollections.filter(item => {
+  // Convert to string safely and handle null/undefined
+  const regNoStr = item.regNo?.toString() || '';
+  const routeStr = item.route?.toString() || '';
+  const searchLower = searchQuery.toLowerCase();
+  
+  return regNoStr.toLowerCase().includes(searchLower) ||
+         routeStr.toLowerCase().includes(searchLower);
+});
+
+useEffect(() => {
+  const total = filteredCollections.length;
+  const net = filteredCollections.reduce((sum, item) => 
+    sum + (parseFloat(item.netWeight) || 0), 0
   );
-
-  const filteredCollections = allCollections.filter(item =>
-    item.regNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.route?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  useEffect(() => {
-    const total = filteredCollections.length;
-    const net = filteredCollections.reduce((sum, item) => 
-      sum + (parseFloat(item.netWeight) || 0), 0
-    );
-    setStats({ total, netWeight: net });
-  }, [filteredCollections]);
-
+  setStats({ total, netWeight: net });
+}, [filteredCollections]);
   const handleRowPress = (item) => {
     setSelectedItem(item);
     setDialogVisible(true);
@@ -202,52 +208,54 @@ export default function ViewLeafCollectionPage({ navigation }) {
             </View>
 
             {/* Data Rows */}
-            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
-              {filteredCollections.slice(from, to).map((item, index) => (
-                <View 
-                  key={item.id || index}
-                  style={[
-                    styles.dataRow,
-                    { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }
-                  ]}
-                  onTouchEnd={() => handleRowPress(item)}
-                >
-                  <Text style={[styles.dataCell, styles.regNoColumn, { color: paperTheme.colors.text }]}>
-                    {item.regNo || 'N/A'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.nameColumn, { color: paperTheme.colors.text }]}>
-                    Sup {item.regNo?.slice(-4) || '001'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.smallColumn, { color: paperTheme.colors.text }]}>
-                    {item.bags || '0'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.gross || '0'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.totalBagWeight || '0.00'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.totalCoarce || '0.00'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.totalWater || '0.00'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.totalBoiled || '0.00'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-                    {item.totalRejected || '0.00'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.routeColumn, { color: paperTheme.colors.text }]}>
-                    {item.route || 'N/A'}
-                  </Text>
-                  <Text style={[styles.dataCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.success, fontWeight: '600' }]}>
-                    {item.netWeight || '0.00'}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
+           {/* Data Rows */}
+<ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+  {filteredCollections.slice(from, to).map((item, index) => (
+    <View 
+      key={item.id || index}
+      style={[
+        styles.dataRow,
+        { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }
+      ]}
+      onTouchEnd={() => handleRowPress(item)}
+    >
+      <Text style={[styles.dataCell, styles.regNoColumn, { color: paperTheme.colors.text }]}>
+        {item.regNo || 'N/A'}
+      </Text>
+      <Text style={[styles.dataCell, styles.nameColumn, { color: paperTheme.colors.text }]}>
+        {/* FIX: Convert to string first before using slice */}
+        Sup {item.regNo?.toString().slice(-4) || '001'}
+      </Text>
+      <Text style={[styles.dataCell, styles.smallColumn, { color: paperTheme.colors.text }]}>
+        {item.bags || '0'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.gross || '0'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.totalBagWeight || '0.00'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.totalCoarce || '0.00'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.totalWater || '0.00'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.totalBoiled || '0.00'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+        {item.totalRejected || '0.00'}
+      </Text>
+      <Text style={[styles.dataCell, styles.routeColumn, { color: paperTheme.colors.text }]}>
+        {item.route || 'N/A'}
+      </Text>
+      <Text style={[styles.dataCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.success, fontWeight: '600' }]}>
+        {item.netWeight || '0.00'}
+      </Text>
+    </View>
+  ))}
+</ScrollView>
           </View>
         </ScrollView>
       </View>
