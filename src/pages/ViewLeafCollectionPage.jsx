@@ -13,7 +13,7 @@ import {
   Text,
   useTheme as usePaperTheme
 } from 'react-native-paper';
-import { useLeafData } from '../context/LeafDataContext';
+import { collectionViewApi } from '../api/leafApi'; // Add this import
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
   isTablet,
@@ -24,14 +24,16 @@ import {
 
 export default function ViewLeafCollectionPage({ navigation }) {
   const paperTheme = usePaperTheme();
-  const { leafCollections, leafDeductions } = useLeafData();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [itemsPerPage] = useState(10);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [collections, setCollections] = useState([]);
+  const [filteredCollections, setFilteredCollections] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [stats, setStats] = useState({ total: 0, netWeight: 0 });
+  const [refreshing, setRefreshing] = useState(false);
 
   const isTabletDevice = isTablet();
 
@@ -102,47 +104,78 @@ export default function ViewLeafCollectionPage({ navigation }) {
     );
   };
 
+  // Fetch collections from API
+  const fetchCollections = async () => {
+    try {
+      setLoading(true);
+      console.log('📥 Fetching today\'s collections from API');
+      const response = await collectionViewApi.getTodayCollections();
+      
+      if (response.data.success) {
+        console.log(`✅ Received ${response.data.data.length} grouped collections`);
+        setCollections(response.data.data);
+      } else {
+        console.error('❌ API returned success: false');
+        setCollections([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching collections:', error);
+      setCollections([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      setLoading(true);
-      setTimeout(() => setLoading(false), 500);
+      fetchCollections();
     });
     return unsubscribe;
   }, [navigation]);
 
-  // Combine all collections
-  // Combine all collections
-const allCollections = [...leafCollections, ...leafDeductions].sort((a, b) => 
-  new Date(b.timestamp) - new Date(a.timestamp)
-);
+  // Filter collections based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredCollections(collections);
+    } else {
+      const searchLower = searchQuery.toLowerCase();
+      const filtered = collections.filter(item => {
+        const regNoStr = item.regNo?.toString() || '';
+        const routeStr = item.route?.toString() || '';
+        const nameStr = item.supplierName?.toString() || '';
+        
+        return regNoStr.toLowerCase().includes(searchLower) ||
+               routeStr.toLowerCase().includes(searchLower) ||
+               nameStr.toLowerCase().includes(searchLower);
+      });
+      setFilteredCollections(filtered);
+    }
+  }, [searchQuery, collections]);
 
-// FIXED: Safely handle when regNo is a number
-const filteredCollections = allCollections.filter(item => {
-  // Convert to string safely and handle null/undefined
-  const regNoStr = item.regNo?.toString() || '';
-  const routeStr = item.route?.toString() || '';
-  const searchLower = searchQuery.toLowerCase();
-  
-  return regNoStr.toLowerCase().includes(searchLower) ||
-         routeStr.toLowerCase().includes(searchLower);
-});
+  // Update stats when filtered collections change
+  useEffect(() => {
+    const total = filteredCollections.length;
+    const net = filteredCollections.reduce((sum, item) => 
+      sum + (parseInt(item.netWeight) || 0), 0
+    );
+    setStats({ total, netWeight: net });
+  }, [filteredCollections]);
 
-useEffect(() => {
-  const total = filteredCollections.length;
-  const net = filteredCollections.reduce((sum, item) => 
-    sum + (parseFloat(item.netWeight) || 0), 0
-  );
-  setStats({ total, netWeight: net });
-}, [filteredCollections]);
   const handleRowPress = (item) => {
     setSelectedItem(item);
     setDialogVisible(true);
   };
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchCollections();
+  };
+
   const from = page * itemsPerPage;
   const to = Math.min((page + 1) * itemsPerPage, filteredCollections.length);
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: paperTheme.colors.background }]}>
         <ActivityIndicator size="large" color={paperTheme.colors.primary} />
@@ -156,6 +189,7 @@ useEffect(() => {
       <Surface style={[styles.header, { backgroundColor: paperTheme.colors.surface, elevation: 4 }]}>
         <DateHeader />
         
+        {/* Search bar with icon - simplified */}
         <Searchbar
           placeholder="Search by registration or route"
           onChangeText={setSearchQuery}
@@ -166,21 +200,32 @@ useEffect(() => {
           placeholderTextColor={paperTheme.colors.textSecondary}
         />
         
+        {/* Stats with refresh icon on the right */}
         <View style={styles.statsContainer}>
-          <Chip 
-            icon="leaf" 
-            style={[styles.chip, { backgroundColor: paperTheme.colors.primary + '15' }]}
-            textStyle={{ color: paperTheme.colors.primary, fontSize: responsiveFontSize(16), fontWeight: '700' }}
-          >
-            Total: {stats.total}
-          </Chip>
-          <Chip 
-            icon="weight" 
-            style={[styles.chip, { backgroundColor: paperTheme.colors.success + '15' }]}
-            textStyle={{ color: paperTheme.colors.success, fontSize: responsiveFontSize(16), fontWeight: '700' }}
-          >
-            Net: {stats.netWeight.toFixed(2)} kg
-          </Chip>
+          <View style={styles.statsWrapper}>
+            <Chip 
+              icon="leaf" 
+              style={[styles.chip, { backgroundColor: paperTheme.colors.primary + '15' }]}
+              textStyle={{ color: paperTheme.colors.primary, fontSize: responsiveFontSize(16), fontWeight: '700' }}
+            >
+              Total: {stats.total}
+            </Chip>
+            <Chip 
+              icon="weight" 
+              style={[styles.chip, { backgroundColor: paperTheme.colors.success + '15' }]}
+              textStyle={{ color: paperTheme.colors.success, fontSize: responsiveFontSize(16), fontWeight: '700' }}
+            >
+              Net: {stats.netWeight} kg
+            </Chip>
+          </View>
+          <IconButton
+            icon="refresh"
+            size={24}
+            onPress={handleRefresh}
+            iconColor={paperTheme.colors.primary}
+            style={styles.refreshButton}
+            disabled={refreshing}
+          />
         </View>
       </Surface>
 
@@ -208,54 +253,60 @@ useEffect(() => {
             </View>
 
             {/* Data Rows */}
-           {/* Data Rows */}
-<ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
-  {filteredCollections.slice(from, to).map((item, index) => (
-    <View 
-      key={item.id || index}
-      style={[
-        styles.dataRow,
-        { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }
-      ]}
-      onTouchEnd={() => handleRowPress(item)}
-    >
-      <Text style={[styles.dataCell, styles.regNoColumn, { color: paperTheme.colors.text }]}>
-        {item.regNo || 'N/A'}
-      </Text>
-      <Text style={[styles.dataCell, styles.nameColumn, { color: paperTheme.colors.text }]}>
-        {/* FIX: Convert to string first before using slice */}
-        Sup {item.regNo?.toString().slice(-4) || '001'}
-      </Text>
-      <Text style={[styles.dataCell, styles.smallColumn, { color: paperTheme.colors.text }]}>
-        {item.bags || '0'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.gross || '0'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.totalBagWeight || '0.00'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.totalCoarce || '0.00'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.totalWater || '0.00'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.totalBoiled || '0.00'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
-        {item.totalRejected || '0.00'}
-      </Text>
-      <Text style={[styles.dataCell, styles.routeColumn, { color: paperTheme.colors.text }]}>
-        {item.route || 'N/A'}
-      </Text>
-      <Text style={[styles.dataCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.success, fontWeight: '600' }]}>
-        {item.netWeight || '0.00'}
-      </Text>
-    </View>
-  ))}
-</ScrollView>
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+              {filteredCollections.length > 0 ? (
+                filteredCollections.slice(from, to).map((item, index) => (
+                  <View 
+                    key={item.regNo || index}
+                    style={[
+                      styles.dataRow,
+                      { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }
+                    ]}
+                    onTouchEnd={() => handleRowPress(item)}
+                  >
+                    <Text style={[styles.dataCell, styles.regNoColumn, { color: paperTheme.colors.text }]}>
+                      {item.regNo || 'N/A'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.nameColumn, { color: paperTheme.colors.text }]}>
+                      {item.supplierName || `Sup ${item.regNo?.toString().slice(-4) || '001'}`}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.smallColumn, { color: paperTheme.colors.text }]}>
+                      {item.bags || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.gross || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalBagWeight || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalCoarce || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalWater || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalBoiled || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalRejected || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.routeColumn, { color: paperTheme.colors.text }]}>
+                      {item.route || 'N/A'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.mediumColumn, styles.lastColumn, { color: paperTheme.colors.success, fontWeight: '600' }]}>
+                      {item.netWeight || '0'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noDataContainer}>
+                  <Text style={[styles.noDataText, { color: paperTheme.colors.textSecondary }]}>
+                    No collections found for today
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </ScrollView>
       </View>
@@ -289,6 +340,7 @@ useEffect(() => {
               <View style={styles.dialogContent}>
                 {Object.entries({
                   'Registration No': selectedItem.regNo,
+                  'Supplier Name': selectedItem.supplierName,
                   'Route': selectedItem.route,
                   'Date': `${selectedItem.date} ${selectedItem.month}`,
                   'Bags': selectedItem.bags,
@@ -298,7 +350,9 @@ useEffect(() => {
                   'Water': `${selectedItem.totalWater} kg`,
                   'Boiled': `${selectedItem.totalBoiled} kg`,
                   'Rejected': `${selectedItem.totalRejected} kg`,
-                  'Net Weight': `${selectedItem.netWeight} kg`
+                  'Net Weight': `${selectedItem.netWeight} kg`,
+                  'Collections': selectedItem.collectionCount || 'N/A',
+                  'Deductions': selectedItem.deductionCount || 'N/A'
                 }).map(([label, value], index) => (
                   <View key={index} style={[styles.dialogRow, { borderBottomColor: paperTheme.colors.border }]}>
                     <Text style={[styles.dialogLabel, { color: paperTheme.colors.textSecondary }]}>{label}:</Text>
@@ -322,7 +376,9 @@ useEffect(() => {
   );
 }
 
+// Add this new style to your existing styles
 const styles = StyleSheet.create({
+  // ... keep all your existing styles exactly as they are ...
   container: {
     flex: 1,
   },
@@ -380,8 +436,14 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: responsiveSpacing.sm,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: responsiveSpacing.xs,
+  },
+  statsWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: responsiveSpacing.sm,
   },
   chip: {
     height: moderateScale(36),
@@ -477,5 +539,9 @@ const styles = StyleSheet.create({
   dialogValue: {
     fontSize: responsiveFontSize(13),
     fontWeight: '500',
+  },
+  refreshButton: {
+    margin: 0,
+    marginLeft: responsiveSpacing.sm,
   },
 });

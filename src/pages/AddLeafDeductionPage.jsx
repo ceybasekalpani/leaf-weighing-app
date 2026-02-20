@@ -302,11 +302,11 @@ export default function AddLeafDeductionPage({ navigation }) {
         setSummaryTotals({
           bags: data.TotalBags?.toString() || '0',
           gross: data.TotalGross?.toString() || '0',
-          bagWeight: data.TotalBagWeight?.toString() || '0',
-          coarce: data.TotalCoarse?.toString() || '0', // Note: API returns Coarse
-          water: data.TotalWater?.toString() || '0',
-          boiled: data.TotalBoiled?.toString() || '0',
-          rejected: data.TotalRejected?.toString() || '0',
+          bagWeight: Math.round(data.TotalBagWeight || 0).toString(),
+          coarce: Math.round(data.TotalCoarse || 0).toString(),
+          water: Math.round(data.TotalWater || 0).toString(),
+          boiled: Math.round(data.TotalBoiled || 0).toString(),
+          rejected: Math.round(data.TotalRejected || 0).toString(),
           netWeight: data.TotalNetWeight?.toString() || '0'
         });
         

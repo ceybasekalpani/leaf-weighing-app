@@ -59,4 +59,10 @@ export const deductionApi = {
   getTodayTransactions: (regNo) => api.get(`/deductions/today/${regNo}`),
 };
 
+// Add new collection view API
+export const collectionViewApi = {
+  getTodayCollections: () => api.get('/collections/today'),
+  getCollectionsByDate: (date) => api.get(`/collections/date/${date}`),
+};
+
 export default api;
