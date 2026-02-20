@@ -10,8 +10,10 @@ import {
   Portal,
   Text,
   TextInput,
-  useTheme as usePaperTheme,
+  useTheme as usePaperTheme
 } from 'react-native-paper';
+import { leafCountApi } from '../api/leafCountApi';
+import { useAuth } from '../context/AuthContext';
 import {
   moderateScale,
   responsiveFontSize,
@@ -20,6 +22,7 @@ import {
 
 export default function AddLeafCountPage() {
   const paperTheme = usePaperTheme();
+  const { user } = useAuth();
   
   // Create refs for each input field
   const bestLeafRef = useRef(null);
@@ -39,27 +42,81 @@ export default function AddLeafCountPage() {
   const [bestLeaf, setBestLeaf] = useState('');
   const [bellowBest, setBellowBest] = useState('');
   const [poor, setPoor] = useState('');
-
-  const routes = [
-    'Hapugastenna',
-    'Nawalapitiya',
-    'Ginigathhena',
-    'Hatton',
-    'Dickoya',
-    'Maskeliya',
-    'Talawakele',
-    'Bogawantalawa',
-    'Norwood',
-    'Watawala',
-  ];
+  
+  // New states for dynamic routes and route total weight
+  const [routes, setRoutes] = useState([]);
+  const [routeTotalWeight, setRouteTotalWeight] = useState(0);
+  const [loadingRouteWeight, setLoadingRouteWeight] = useState(false);
+  const [loadingRoutes, setLoadingRoutes] = useState(true);
 
   // Clear timers on unmount
   useEffect(() => {
     return () => {
-      clearTimeout(bestLeafTimerRef.current);
-      clearTimeout(bellowBestTimerRef.current);
+      if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
+      if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
     };
   }, []);
+
+  // Fetch routes from database on component mount
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
+
+  const fetchRoutes = async () => {
+    setLoadingRoutes(true);
+    try {
+      const response = await leafCountApi.getRoutes();
+      if (response && response.success) {
+        setRoutes(response.data || []);
+      } else {
+        setRoutes([]);
+      }
+    } catch (error) {
+      console.error('Error fetching routes:', error);
+      Alert.alert('Error', 'Failed to load routes. Please check your connection.');
+      setRoutes([]);
+    } finally {
+      setLoadingRoutes(false);
+    }
+  };
+
+const fetchRouteTotalWeight = async (selectedRoute) => {
+  if (!selectedRoute || !date) {
+    console.log('⚠️ Cannot fetch weight - missing route or date:', { selectedRoute, date });
+    return;
+  }
+  
+  setLoadingRouteWeight(true);
+  try {
+    console.log('🔍 Fetching weight for:', { route: selectedRoute, date });
+    
+    const response = await leafCountApi.getRouteTotalWeight(selectedRoute, date);
+    console.log('📥 API Response:', response);
+    
+    if (response && response.success) {
+      setRouteTotalWeight(response.data?.totalWeight || 0);
+      console.log('✅ Weight set to:', response.data?.totalWeight);
+    } else {
+      console.log('⚠️ API returned unsuccessful:', response);
+      setRouteTotalWeight(0);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching route total weight:', error);
+    setRouteTotalWeight(0);
+  } finally {
+    setLoadingRouteWeight(false);
+  }
+};
+
+// Add this useEffect to watch for changes
+useEffect(() => {
+  console.log('🔄 Route or date changed:', { route, date });
+  if (route && date) {
+    fetchRouteTotalWeight(route);
+  } else {
+    setRouteTotalWeight(0);
+  }
+}, [route, date]);
 
   // Generate months dynamically (current month and previous months only)
   const generateMonths = () => {
@@ -83,7 +140,9 @@ export default function AddLeafCountPage() {
 
   // Handle auto-focus with delay for Best Leaf
   const handleBestLeafChange = (text) => {
-    setBestLeaf(text);
+    // Allow only numbers
+    const numericText = text.replace(/[^0-9]/g, '');
+    setBestLeaf(numericText);
     
     // Clear existing timer
     if (bestLeafTimerRef.current) {
@@ -91,18 +150,20 @@ export default function AddLeafCountPage() {
     }
     
     // Set new timer to move to next field after 500ms of no typing
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       bestLeafTimerRef.current = setTimeout(() => {
         if (bellowBestRef.current) {
           bellowBestRef.current.focus();
         }
-      }, 500); // 500ms delay
+      }, 500);
     }
   };
 
   // Handle auto-focus with delay for Below Best
   const handleBellowBestChange = (text) => {
-    setBellowBest(text);
+    // Allow only numbers
+    const numericText = text.replace(/[^0-9]/g, '');
+    setBellowBest(numericText);
     
     // Clear existing timer
     if (bellowBestTimerRef.current) {
@@ -110,7 +171,7 @@ export default function AddLeafCountPage() {
     }
     
     // Set new timer to move to next field after 500ms of no typing
-    if (text.length > 0) {
+    if (numericText.length > 0) {
       bellowBestTimerRef.current = setTimeout(() => {
         if (poorRef.current) {
           poorRef.current.focus();
@@ -121,33 +182,54 @@ export default function AddLeafCountPage() {
 
   // Handle Poor field change (no auto-focus as it's the last field)
   const handlePoorChange = (text) => {
-    setPoor(text);
-    // You could add auto-save here if needed
+    // Allow only numbers
+    const numericText = text.replace(/[^0-9]/g, '');
+    setPoor(numericText);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Clear any pending timers when saving
-    clearTimeout(bestLeafTimerRef.current);
-    clearTimeout(bellowBestTimerRef.current);
+    if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
+    if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
-    const leafCount = {
-      date,
-      month,
-      route,
-      bestLeaf,
-      bellowBest,
-      poor,
-      timestamp: new Date().toISOString(),
-    };
-    console.log('Saving leaf count:', leafCount);
-    // Here you would save to your context/storage
-    handleClear();
+    if (!route || !date || !month) {
+      Alert.alert('Error', 'Please select date, month and route');
+      return;
+    }
+
+    if (!bestLeaf && !bellowBest && !poor) {
+      Alert.alert('Error', 'Please enter at least one leaf count value');
+      return;
+    }
+
+    try {
+      const leafCountData = {
+        date,
+        month,
+        route,
+        bestLeaf: bestLeaf || '0',
+        bellowBest: bellowBest || '0',
+        poor: poor || '0'
+      };
+
+      const response = await leafCountApi.saveLeafCount(leafCountData, user);
+      
+      if (response && response.success) {
+        Alert.alert('Success', 'Leaf count saved successfully');
+        handleClear();
+      } else {
+        Alert.alert('Error', response?.message || 'Failed to save');
+      }
+    } catch (error) {
+      console.error('Error saving leaf count:', error);
+      Alert.alert('Error', 'Failed to save. Please try again.');
+    }
   };
 
   const handleClear = () => {
     // Clear any pending timers when clearing
-    clearTimeout(bestLeafTimerRef.current);
-    clearTimeout(bellowBestTimerRef.current);
+    if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
+    if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
     setDate('');
     setMonth('');
@@ -156,11 +238,13 @@ export default function AddLeafCountPage() {
     setBellowBest('');
     setPoor('');
     setSelectedDay('');
-    
-    // Optionally focus on first input after clearing
-    if (bestLeafRef.current) {
-      bestLeafRef.current.focus();
-    }
+    setRouteTotalWeight(0);
+  };
+
+  const handleRouteSelect = (selectedRoute) => {
+    setRoute(selectedRoute);
+    setRouteMenuVisible(false);
+    fetchRouteTotalWeight(selectedRoute);
   };
 
   const openDateDialog = () => {
@@ -181,7 +265,7 @@ export default function AddLeafCountPage() {
     }
   };
 
-  // Generate days for the calendar (1-31) with square styling
+  // Generate days for the calendar (1-31)
   const renderDayButtons = () => {
     const days = [];
     const today = new Date().getDate();
@@ -202,7 +286,7 @@ export default function AddLeafCountPage() {
               backgroundColor: isSelected 
                 ? paperTheme.colors.primary 
                 : isToday && !isSelected 
-                  ? paperTheme.colors.primary + '20' // 20% opacity
+                  ? paperTheme.colors.primary + '20'
                   : 'transparent',
               borderColor: isToday && !isSelected 
                 ? paperTheme.colors.primary 
@@ -229,7 +313,7 @@ export default function AddLeafCountPage() {
     return days;
   };
 
-  // Date Header Component with enhanced styling
+  // Date Header Component
   const DateHeader = () => {
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
@@ -241,7 +325,6 @@ export default function AddLeafCountPage() {
         <View style={[styles.dateBox, { 
           backgroundColor: paperTheme.colors.surface, 
           borderColor: paperTheme.colors.primary + '30',
-          borderWidth: 1.5,
         }]}>
           <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.primary + '15' }]}>
             <IconButton 
@@ -266,7 +349,6 @@ export default function AddLeafCountPage() {
         <View style={[styles.dateBox, { 
           backgroundColor: paperTheme.colors.surface, 
           borderColor: paperTheme.colors.secondary + '30',
-          borderWidth: 1.5,
         }]}>
           <View style={[styles.dateIconContainer, { backgroundColor: paperTheme.colors.secondary + '15' }]}>
             <IconButton 
@@ -323,7 +405,6 @@ export default function AddLeafCountPage() {
                   style={styles.input}
                   dense={true}
                   editable={false}
-                  theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
                 />
               </View>
             </TouchableOpacity>
@@ -334,39 +415,20 @@ export default function AddLeafCountPage() {
                 onDismiss={() => setShowDateDialog(false)} 
                 style={[styles.dateDialog, { backgroundColor: paperTheme.colors.surface }]}
               >
-                {/* FIX: Replace Dialog.Title with custom header */}
-                <View style={styles.dialogTitleContainer}>
-                  <IconButton icon="calendar" size={24} iconColor={paperTheme.colors.primary} />
-                  <Text style={[styles.dialogTitleText, { color: paperTheme.colors.primary }]}>Select Date</Text>
-                </View>
-                <Dialog.Content style={styles.dialogContent}>
-                  {/* Simplified - only dates in square format */}
+                <Dialog.Title>Select Date</Dialog.Title>
+                <Dialog.ScrollArea style={styles.dialogScrollArea}>
                   <View style={styles.simpleCalendarContainer}>
                     {renderDayButtons()}
                   </View>
-                </Dialog.Content>
-                <Dialog.Actions style={styles.dialogActions}>
-                  <Button 
-                    onPress={() => setShowDateDialog(false)}
-                    textColor={paperTheme.colors.error}
-                    style={styles.dialogButton}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onPress={handleDateConfirm}
-                    mode="contained"
-                    buttonColor={paperTheme.colors.primary}
-                    style={styles.dialogButton}
-                    labelStyle={styles.dialogButtonLabel}
-                  >
-                    OK
-                  </Button>
+                </Dialog.ScrollArea>
+                <Dialog.Actions>
+                  <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
+                  <Button onPress={handleDateConfirm}>OK</Button>
                 </Dialog.Actions>
               </Dialog>
             </Portal>
 
-            {/* Month Dropdown - Current and Previous Months Only */}
+            {/* Month Dropdown */}
             <Menu
               visible={monthMenuVisible}
               onDismiss={() => setMonthMenuVisible(false)}
@@ -383,12 +445,10 @@ export default function AddLeafCountPage() {
                       style={styles.input}
                       dense={true}
                       editable={false}
-                      theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
                     />
                   </View>
                 </TouchableOpacity>
               }
-              style={{ backgroundColor: paperTheme.colors.surface }}
             >
               {months.map((m) => (
                 <Menu.Item
@@ -398,7 +458,6 @@ export default function AddLeafCountPage() {
                     setMonthMenuVisible(false);
                   }}
                   title={m}
-                  titleStyle={{ color: paperTheme.colors.text }}
                 />
               ))}
             </Menu>
@@ -414,31 +473,67 @@ export default function AddLeafCountPage() {
                       label="Route Name"
                       value={route}
                       mode="outlined"
-                      placeholder="Select Route"
+                      placeholder={loadingRoutes ? "Loading routes..." : "Select Route"}
                       left={<TextInput.Icon icon="map-marker" />}
-                      right={<TextInput.Icon icon="chevron-down" />}
+                      right={loadingRoutes ? 
+                        <TextInput.Icon icon="loading" /> : 
+                        <TextInput.Icon icon="chevron-down" />
+                      }
                       style={styles.input}
                       dense={true}
                       editable={false}
-                      theme={{ colors: { primary: paperTheme.colors.primary, text: paperTheme.colors.text } }}
                     />
                   </View>
                 </TouchableOpacity>
               }
-              style={{ backgroundColor: paperTheme.colors.surface }}
             >
-              {routes.map((r) => (
+              {loadingRoutes ? (
                 <Menu.Item
-                  key={r}
-                  onPress={() => {
-                    setRoute(r);
-                    setRouteMenuVisible(false);
-                  }}
-                  title={r}
-                  titleStyle={{ color: paperTheme.colors.text }}
+                  title="Loading..."
+                  disabled
                 />
-              ))}
+              ) : routes.length > 0 ? (
+                routes.map((r) => (
+                  <Menu.Item
+                    key={r}
+                    onPress={() => handleRouteSelect(r)}
+                    title={r}
+                  />
+                ))
+              ) : (
+                <Menu.Item
+                  title="No routes found"
+                  disabled
+                />
+              )}
             </Menu>
+
+            {/* Route Total Weight Display */}
+            {route ? (
+              <Card style={[styles.routeWeightCard, { 
+                backgroundColor: paperTheme.colors.surfaceVariant || paperTheme.colors.surface,
+              }]}>
+                <Card.Content style={styles.routeWeightContent}>
+                  <View style={styles.routeWeightLeft}>
+                    <IconButton icon="scale" size={24} iconColor={paperTheme.colors.primary} />
+                    <View>
+                      <Text style={[styles.routeWeightLabel, { color: paperTheme.colors.textSecondary }]}>
+                        Today's Total Weight
+                      </Text>
+                      <Text style={[styles.routeWeightValue, { color: paperTheme.colors.primary }]}>
+                        {loadingRouteWeight ? 'Loading...' : `${routeTotalWeight} kg`}
+                      </Text>
+                    </View>
+                  </View>
+                  <IconButton 
+                    icon="refresh" 
+                    size={20} 
+                    onPress={() => fetchRouteTotalWeight(route)}
+                    iconColor={paperTheme.colors.primary}
+                  />
+                </Card.Content>
+              </Card>
+            ) : null}
 
             <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
@@ -457,15 +552,13 @@ export default function AddLeafCountPage() {
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   returnKeyType="next"
                   onSubmitEditing={() => {
-                    clearTimeout(bestLeafTimerRef.current);
+                    if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
                     bellowBestRef.current?.focus();
                   }}
-                  theme={{ colors: { primary: paperTheme.colors.success, text: paperTheme.colors.text } }}
                 />
               </View>
 
@@ -478,15 +571,13 @@ export default function AddLeafCountPage() {
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   returnKeyType="next"
                   onSubmitEditing={() => {
-                    clearTimeout(bellowBestTimerRef.current);
+                    if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
                     poorRef.current?.focus();
                   }}
-                  theme={{ colors: { primary: paperTheme.colors.warning, text: paperTheme.colors.text } }}
                 />
               </View>
 
@@ -499,12 +590,10 @@ export default function AddLeafCountPage() {
                   mode="outlined"
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor="#999"
                   style={styles.percentageInput}
                   dense={true}
                   returnKeyType="done"
-                  onSubmitEditing={handleSave} // Optional: Save when done is pressed
-                  theme={{ colors: { primary: paperTheme.colors.error, text: paperTheme.colors.text } }}
+                  onSubmitEditing={handleSave}
                 />
               </View>
             </View>
@@ -517,7 +606,6 @@ export default function AddLeafCountPage() {
                 style={[styles.button, styles.saveButton]}
                 icon="content-save"
                 buttonColor={paperTheme.colors.primary}
-                labelStyle={styles.buttonLabel}
                 disabled={!route || !date || !month}
               >
                 Save
@@ -528,7 +616,6 @@ export default function AddLeafCountPage() {
                 style={styles.button}
                 icon="close"
                 textColor={paperTheme.colors.error}
-                labelStyle={styles.buttonLabel}
               >
                 Clear
               </Button>
@@ -536,7 +623,6 @@ export default function AddLeafCountPage() {
           </Card.Content>
         </Card>
         
-        {/* Add extra space at bottom for better scrolling */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -569,6 +655,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 1.5,
   },
   dateIconContainer: {
     borderRadius: moderateScale(10),
@@ -663,37 +750,18 @@ const styles = StyleSheet.create({
   saveButton: {
     elevation: 4,
   },
-  buttonLabel: {
-    fontSize: responsiveFontSize(14),
-    paddingVertical: responsiveSpacing.xs,
-    fontWeight: '600',
-  },
   dateDialog: {
     maxHeight: '80%',
     borderRadius: moderateScale(20),
-    elevation: 5,
   },
-  // New style for custom dialog header
-  dialogTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-  },
-  dialogTitleText: {
-    fontSize: responsiveFontSize(20),
-    fontWeight: 'bold',
-    marginLeft: responsiveSpacing.xs,
-  },
-  dialogContent: {
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
+  dialogScrollArea: {
+    maxHeight: 400,
+    paddingHorizontal: 0,
   },
   simpleCalendarContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'left',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     padding: responsiveSpacing.md,
@@ -727,6 +795,7 @@ const styles = StyleSheet.create({
   },
   selectedDayButtonText: {
     fontWeight: '700',
+    color: 'white',
   },
   todayButtonText: {
     fontWeight: '600',
@@ -738,17 +807,29 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  dialogActions: {
-    paddingHorizontal: responsiveSpacing.md,
-    paddingBottom: responsiveSpacing.md,
-    gap: responsiveSpacing.sm,
+  routeWeightCard: {
+    marginTop: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.md,
+    elevation: 2,
+    borderRadius: moderateScale(12),
   },
-  dialogButton: {
-    borderRadius: moderateScale(20),
-    paddingHorizontal: responsiveSpacing.md,
+  routeWeightContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: responsiveSpacing.xs,
   },
-  dialogButtonLabel: {
-    fontSize: responsiveFontSize(14),
-    fontWeight: '600',
+  routeWeightLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  routeWeightLabel: {
+    fontSize: responsiveFontSize(12),
+    marginBottom: 2,
+  },
+  routeWeightValue: {
+    fontSize: responsiveFontSize(18),
+    fontWeight: 'bold',
   },
 });
