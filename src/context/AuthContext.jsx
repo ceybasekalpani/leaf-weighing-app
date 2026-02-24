@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
 
@@ -36,21 +36,42 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     setIsLoading(true);
     try {
-      // TODO: Add your actual login API call here
-      // For now, simulate a successful login
+      // Simple validation - you can add more logic here
+      if (!username.trim() || !password.trim()) {
+        return { 
+          success: false, 
+          error: 'Username and password are required' 
+        };
+      }
+
+      // For now, just store the username as entered by user
+      // You can add validation against a list of allowed users if needed
       const userData = {
-        username: username,
-        id: 1,
-        name: 'Test User',
-        // Add other user details as needed
+        username: username.trim(),
+        name: username.trim(),
+        id: Date.now(), // Simple unique ID
+        role: 'user',
+        loggedInAt: new Date().toISOString()
       };
       
+      // Store user data
       await AsyncStorage.setItem('@user', JSON.stringify(userData));
+      await AsyncStorage.setItem('userToken', 'simple-token-' + Date.now());
+      
       setUser(userData);
-      return { success: true };
+      
+      console.log('✅ User logged in:', username);
+      
+      return { 
+        success: true, 
+        user: userData 
+      };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: 'Login failed. Please try again.' 
+      };
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +80,9 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await AsyncStorage.removeItem('@user');
+      await AsyncStorage.removeItem('userToken');
       setUser(null);
+      console.log('✅ User logged out');
     } catch (error) {
       console.error('Logout error:', error);
     }

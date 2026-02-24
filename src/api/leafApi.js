@@ -57,25 +57,41 @@ api.interceptors.response.use(
 // Leaf Count API endpoints - UPDATED to match backend (leafcount NOT leaf-count)
 export const leafCountApi = {
   // Get all routes
-  getRoutes: () => api.get('/leafcount/routes'), // Fixed: was 'leaf-count', now 'leafcount'
+  getRoutes: () => api.get('/leafcount/routes'),
   
   // Get route total weight with date and month
   getRouteTotalWeight: (routeName, date, month) => {
-    // Make sure to encode the route name properly
     const encodedRoute = encodeURIComponent(routeName);
-    return api.get(`/leafcount/routes/${encodedRoute}/total-weight`, { // Fixed: was 'leaf-count'
+    return api.get(`/leafcount/routes/${encodedRoute}/total-weight`, {
       params: { date, month }
     });
   },
   
-  // Save leaf count
-  saveLeafCount: (data, user) => {
-    const userName = user?.name || user?.username || 'mobile_user';
-    return api.post('/leafcount/save', { ...data, userName }); // Fixed: was 'leaf-count'
+  
+ // Save leaf count - SIMPLIFIED VERSION
+  saveLeafCount: (data) => {
+    console.log('📤 Preparing to save leaf count:', data);
+    
+    // Ensure userName is included in the payload
+    const payload = {
+      date: data.date,
+      month: data.month,
+      route: data.route,
+      bestLeaf: data.bestLeaf,
+      bellowBest: data.bellowBest,
+      poor: data.poor,
+      userName: data.userName, // This comes from the logged-in user
+      pcName: data.pcName,
+      mode: data.mode || 'App'
+    };
+  
+console.log('📤 Sending payload to server:', payload);
+    
+    return api.post('/leafcount/save', payload);
   },
   
   // Get leaf count history
-  getLeafCountHistory: (params) => api.get('/leafcount/history', { params }), // Fixed: was 'leaf-count'
+  getLeafCountHistory: (params) => api.get('/leafcount/history', { params }),
 };
 
 // Supplier API endpoints

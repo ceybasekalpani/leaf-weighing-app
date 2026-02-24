@@ -1,4 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import * as Device from 'expo-device';
+import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
@@ -47,10 +49,21 @@ export default function AddLeafCountPage() {
   
   // States for dynamic routes and route total weight
   const [routes, setRoutes] = useState([]);
-  const [routeTotalWeight, setRouteTotalWeight] = useState(0);
+  const [routeTotalWeight, setRouteTotalWeight] = useState('0.00');
   const [loadingRouteWeight, setLoadingRouteWeight] = useState(false);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  // Calculate weights based on percentages
+  const calculateWeight = (percentage) => {
+    const totalWeight = parseFloat(routeTotalWeight) || 0;
+    const percentValue = parseFloat(percentage) || 0;
+    return ((totalWeight * percentValue) / 100).toFixed(2);
+  };
+
+  const bestLeafWeight = calculateWeight(bestLeaf);
+  const bellowBestWeight = calculateWeight(bellowBest);
+  const poorWeight = calculateWeight(poor);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -60,11 +73,18 @@ export default function AddLeafCountPage() {
     };
   }, []);
 
-  // Fetch routes from database on component mount
-  useEffect(() => {
-    fetchRoutes();
-  }, []);
+  // Fetch routes when screen focuses
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('📱 Screen focused - refreshing routes');
+      fetchRoutes();
+      return () => {
+        // cleanup if needed
+      };
+    }, [])
+  );
 
+  // Fetch routes from database
   const fetchRoutes = async () => {
     setLoadingRoutes(true);
     try {
@@ -107,64 +127,62 @@ export default function AddLeafCountPage() {
     }
   };
 
- // Update these functions in your AddLeafCountPage.jsx
-
-const fetchRouteTotalWeight = async (selectedRoute) => {
-  if (!selectedRoute || !date || !month) {
-    console.log('⚠️ Cannot fetch weight - missing route, date, or month:', { selectedRoute, date, month });
-    setRouteTotalWeight(0);
-    return;
-  }
-  
-  setLoadingRouteWeight(true);
-  try {
-    console.log('🔍 Fetching weight for:', { route: selectedRoute, date, month });
-    
-    // Pass both date and month to the API
-    const response = await leafCountApi.getRouteTotalWeight(selectedRoute, date, month);
-    console.log('📥 Weight response:', JSON.stringify(response, null, 2));
-    
-    if (response && response.data) {
-      let weight = 0;
-      
-      if (response.data.success && response.data.data) {
-        weight = response.data.data.totalWeight || 0;
-        
-        console.log('✅ Route total weight calculated:', weight);
-        if (response.data.data.gross !== undefined && response.data.data.deductions !== undefined) {
-          console.log(`✅ Formula: Gross(${response.data.data.gross}) - Deductions(${response.data.data.deductions}) = ${weight}`);
-        }
-      } else if (response.data.totalWeight !== undefined) {
-        weight = response.data.totalWeight;
-      } else if (response.data.weight !== undefined) {
-        weight = response.data.weight;
-      } else if (typeof response.data === 'number') {
-        weight = response.data;
-      }
-      
-      setRouteTotalWeight(weight);
-    } else {
-      console.log('⚠️ Invalid response format');
-      setRouteTotalWeight(0);
+  // Fetch route total weight - UPDATED with 2 decimal formatting
+  const fetchRouteTotalWeight = async (selectedRoute) => {
+    if (!selectedRoute || !date || !month) {
+      console.log('⚠️ Cannot fetch weight - missing route, date, or month:', { selectedRoute, date, month });
+      setRouteTotalWeight('0.00');
+      return;
     }
-  } catch (error) {
-    console.error('❌ Error fetching route total weight:', error);
-    setRouteTotalWeight(0);
-  } finally {
-    setLoadingRouteWeight(false);
-  }
-};
+    
+    setLoadingRouteWeight(true);
+    try {
+      console.log('🔍 Fetching weight for:', { route: selectedRoute, date, month });
+      
+      const response = await leafCountApi.getRouteTotalWeight(selectedRoute, date, month);
+      console.log('📥 Weight response:', JSON.stringify(response, null, 2));
+      
+      if (response && response.data) {
+        let weight = 0;
+        
+        if (response.data.success && response.data.data) {
+          weight = response.data.data.totalWeight || 0;
+          console.log('✅ Route total weight calculated:', weight);
+        } else if (response.data.totalWeight !== undefined) {
+          weight = response.data.totalWeight;
+        } else if (response.data.weight !== undefined) {
+          weight = response.data.weight;
+        } else if (typeof response.data === 'number') {
+          weight = response.data;
+        }
+        
+        // Format to 2 decimal places
+        const formattedWeight = parseFloat(weight).toFixed(2);
+        console.log('✅ Formatted weight (2 decimals):', formattedWeight);
+        setRouteTotalWeight(formattedWeight);
+      } else {
+        console.log('⚠️ Invalid response format');
+        setRouteTotalWeight('0.00');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching route total weight:', error);
+      setRouteTotalWeight('0.00');
+    } finally {
+      setLoadingRouteWeight(false);
+    }
+  };
 
-// Update the useEffect to include month in dependencies
-useEffect(() => {
-  console.log('🔄 Route, date, or month changed:', { route, date, month });
-  if (route && date && month) {
-    fetchRouteTotalWeight(route);
-  } else {
-    setRouteTotalWeight(0);
-  }
-}, [route, date, month]); // Added month to dependencies
+  // Auto-fetch when route, date, or month changes
+  useEffect(() => {
+    console.log('🔄 Route, date, or month changed:', { route, date, month });
+    if (route && date && month) {
+      fetchRouteTotalWeight(route);
+    } else {
+      setRouteTotalWeight('0.00');
+    }
+  }, [route, date, month]);
 
+  // Generate months dynamically
   const generateMonths = () => {
     const months = [];
     const currentDate = new Date();
@@ -182,6 +200,7 @@ useEffect(() => {
   const months = generateMonths();
   const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
+  // Handle Best Leaf change with auto-focus
   const handleBestLeafChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setBestLeaf(numericText);
@@ -199,6 +218,7 @@ useEffect(() => {
     }
   };
 
+  // Handle Below Best change with auto-focus
   const handleBellowBestChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setBellowBest(numericText);
@@ -216,106 +236,124 @@ useEffect(() => {
     }
   };
 
+  // Handle Poor change
   const handlePoorChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setPoor(numericText);
   };
 
-  const handleSave = async () => {
-    if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
-    if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
+ // Handle Save - UPDATED to correctly get username from login
+const handleSave = async () => {
+  if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
+  if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
-    if (!route || !date || !month) {
-      Alert.alert('Error', 'Please select date, month and route');
-      return;
-    }
+  if (!route || !date || !month) {
+    Alert.alert('Error', 'Please select date, month and route');
+    return;
+  }
 
-    if (!bestLeaf && !bellowBest && !poor) {
-      Alert.alert('Error', 'Please enter at least one leaf count value');
-      return;
-    }
+  if (!bestLeaf && !bellowBest && !poor) {
+    Alert.alert('Error', 'Please enter at least one leaf count value');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const getDeviceName = () => {
-        try {
-          if (Platform.OS === 'web') {
-            return window.location.hostname || 'Web Browser';
-          } else if (Platform.OS === 'android') {
-            const deviceName = Device.deviceName;
-            const modelName = Device.modelName;
-            const brand = Device.brand;
-            
-            if (deviceName) {
-              return deviceName;
-            } else if (brand && modelName) {
-              const formattedBrand = brand.charAt(0).toUpperCase() + brand.slice(1);
-              return `${formattedBrand} ${modelName}`;
-            } else {
-              return `Android ${Device.osVersion || ''}`;
-            }
-          } else if (Platform.OS === 'ios') {
-            const deviceName = Device.deviceName;
-            const modelName = Device.modelName;
-            
-            if (deviceName) {
-              return deviceName;
-            } else if (modelName) {
-              return `iPhone ${modelName}`;
-            } else {
-              return `iOS ${Device.osVersion || ''}`;
-            }
+  try {
+    const getDeviceName = () => {
+      try {
+        if (Platform.OS === 'web') {
+          return window.location.hostname || 'Web Browser';
+        } else if (Platform.OS === 'android') {
+          const deviceName = Device.deviceName;
+          const modelName = Device.modelName;
+          const brand = Device.brand;
+          
+          if (deviceName) {
+            return deviceName;
+          } else if (brand && modelName) {
+            const formattedBrand = brand.charAt(0).toUpperCase() + brand.slice(1);
+            return `${formattedBrand} ${modelName}`;
           } else {
-            return 'Mobile App';
+            return `Android ${Device.osVersion || ''}`;
           }
-        } catch (error) {
-          console.error('Error getting device name:', error);
-          return Platform.OS === 'android' ? 'Android Device' : 
-                 Platform.OS === 'ios' ? 'iOS Device' : 
-                 'Mobile App';
-        }
-      };
-
-      const pcName = getDeviceName();
-      const mode = 'App';
-      const loggedInUserName = user?.username || 'mobile_user';
-
-      const leafCountData = {
-        date,
-        month,
-        route,
-        bestLeaf: bestLeaf || '0',
-        bellowBest: bellowBest || '0',
-        poor: poor || '0',
-        userName: loggedInUserName,
-        mode: mode,
-        pcName: pcName
-      };
-
-      console.log('💾 Saving leaf count:', leafCountData);
-      
-      const response = await leafCountApi.saveLeafCount(leafCountData, user);
-      console.log('📥 Save response:', JSON.stringify(response, null, 2));
-      
-      if (response && response.data) {
-        if (response.data.success || response.data.message?.includes('success')) {
-          Alert.alert('Success', 'Leaf count saved successfully');
-          handleClear();
+        } else if (Platform.OS === 'ios') {
+          const deviceName = Device.deviceName;
+          const modelName = Device.modelName;
+          
+          if (deviceName) {
+            return deviceName;
+          } else if (modelName) {
+            return `iPhone ${modelName}`;
+          } else {
+            return `iOS ${Device.osVersion || ''}`;
+          }
         } else {
-          Alert.alert('Error', response.data.message || 'Failed to save');
+          return 'Mobile App';
         }
-      } else {
-        Alert.alert('Error', 'Failed to save. Please try again.');
+      } catch (error) {
+        console.error('Error getting device name:', error);
+        return Platform.OS === 'android' ? 'Android Device' : 
+               Platform.OS === 'ios' ? 'iOS Device' : 
+               'Mobile App';
       }
-    } catch (error) {
-      console.error('❌ Error saving leaf count:', error);
-      Alert.alert('Error', 'Failed to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
+    const pcName = getDeviceName();
+    const mode = 'App';
+    
+    // IMPORTANT FIX: Get the actual logged-in username from user object
+    // The user object comes from AuthContext after login
+    const loggedInUserName = user?.username || user?.name || 'unknown_user';
+    
+    console.log('👤 Current logged in user:', {
+      username: loggedInUserName,
+      fullUserObject: user
+    });
+
+    if (!loggedInUserName || loggedInUserName === 'unknown_user') {
+      console.warn('⚠️ Username not found in user object:', user);
+      Alert.alert(
+        'Warning', 
+        'Username not found. Please log out and log in again.'
+      );
+    }
+
+    const leafCountData = {
+      date,
+      month,
+      route,
+      bestLeaf: bestLeaf || '0',
+      bellowBest: bellowBest || '0',
+      poor: poor || '0',
+      userName: loggedInUserName, // This will now contain the actual username from login
+      mode: mode,
+      pcName: pcName
+    };
+
+    console.log('💾 Saving leaf count data:', leafCountData);
+    
+    const response = await leafCountApi.saveLeafCount(leafCountData);
+    console.log('📥 Save response:', JSON.stringify(response, null, 2));
+    
+    if (response && response.data) {
+      if (response.data.success || response.data.message?.includes('success')) {
+        Alert.alert('Success', 'Leaf count saved successfully');
+        handleClear();
+      } else {
+        Alert.alert('Error', response.data.message || 'Failed to save');
+      }
+    } else {
+      Alert.alert('Error', 'Failed to save. Please try again.');
+    }
+  } catch (error) {
+    console.error('❌ Error saving leaf count:', error);
+    Alert.alert('Error', 'Failed to save. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+  // Handle Clear - UPDATED with '0.00'
   const handleClear = () => {
     if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
     if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
@@ -327,15 +365,17 @@ useEffect(() => {
     setBellowBest('');
     setPoor('');
     setSelectedDay('');
-    setRouteTotalWeight(0);
+    setRouteTotalWeight('0.00');
   };
 
+  // Handle Route Selection
   const handleRouteSelect = (selectedRoute) => {
     console.log('✅ Route selected:', selectedRoute);
     setRoute(selectedRoute);
     setRouteMenuVisible(false);
   };
 
+  // Date Dialog Handlers
   const openDateDialog = () => {
     setSelectedDay(date);
     setShowDateDialog(true);
@@ -354,6 +394,7 @@ useEffect(() => {
     }
   };
 
+  // Render Day Buttons
   const renderDayButtons = () => {
     const days = [];
     const today = new Date().getDate();
@@ -401,6 +442,7 @@ useEffect(() => {
     return days;
   };
 
+  // Date Header Component
   const DateHeader = () => {
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
@@ -549,52 +591,70 @@ useEffect(() => {
               ))}
             </Menu>
 
-            {/* Route Dropdown */}
-            <Menu
-              visible={routeMenuVisible}
-              onDismiss={() => setRouteMenuVisible(false)}
-              anchor={
-                <TouchableOpacity onPress={() => setRouteMenuVisible(true)} activeOpacity={0.7}>
-                  <View pointerEvents="none">
-                    <TextInput
-                      label="Route Name"
-                      value={route}
-                      mode="outlined"
-                      placeholder={loadingRoutes ? "Loading routes..." : "Select Route"}
-                      left={<TextInput.Icon icon="map-marker" />}
-                      right={
-                        loadingRoutes ? 
-                          <TextInput.Icon icon={() => <ActivityIndicator size="small" />} /> : 
-                          <TextInput.Icon icon="chevron-down" />
-                      }
-                      style={styles.input}
-                      dense={true}
-                      editable={false}
-                    />
-                  </View>
-                </TouchableOpacity>
-              }
-            >
-              {loadingRoutes ? (
-                <Menu.Item
-                  title="Loading routes..."
-                  disabled
-                />
-              ) : routes.length > 0 ? (
-                routes.map((routeName, index) => (
+            {/* Route Dropdown with Refresh Option in Menu */}
+          <View style={styles.routeRow}>
+            <View style={styles.routeInputContainer}>
+              <Menu
+                visible={routeMenuVisible}
+                onDismiss={() => setRouteMenuVisible(false)}
+                anchor={
+                  <TouchableOpacity onPress={() => setRouteMenuVisible(true)} activeOpacity={0.7}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        label="Route Name"
+                        value={route}
+                        mode="outlined"
+                        placeholder={loadingRoutes ? "Loading routes..." : "Select Route"}
+                        left={<TextInput.Icon icon="map-marker" />}
+                        right={
+                          loadingRoutes ? 
+                            <TextInput.Icon icon={() => <ActivityIndicator size="small" />} /> : 
+                            <TextInput.Icon icon="chevron-down" />
+                        }
+                        style={styles.input}
+                        dense={true}
+                        editable={false}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                }
+              >
+                {loadingRoutes ? (
                   <Menu.Item
-                    key={`${routeName}-${index}`}
-                    onPress={() => handleRouteSelect(routeName)}
-                    title={routeName}
+                    title="Loading routes..."
+                    disabled
                   />
-                ))
-              ) : (
-                <Menu.Item
-                  title="No routes found"
-                  disabled
-                />
-              )}
-            </Menu>
+                ) : (
+                  <>
+                    <Menu.Item
+                      title=" Refresh Routes"
+                      onPress={() => {
+                        fetchRoutes();
+                        // Keep menu open to show refreshed results
+                      }}
+                      leadingIcon="refresh"
+                    />
+                    <Divider />
+                    
+                    {routes.length > 0 ? (
+                      routes.map((routeName, index) => (
+                        <Menu.Item
+                          key={`${routeName}-${index}`}
+                          onPress={() => handleRouteSelect(routeName)}
+                          title={routeName}
+                        />
+                      ))
+                    ) : (
+                      <Menu.Item
+                        title="No routes found"
+                        disabled
+                      />
+                    )}
+                  </>
+                )}
+              </Menu>
+            </View>
+          </View>
 
             {/* Route Total Weight Display */}
             {route ? (
@@ -606,7 +666,7 @@ useEffect(() => {
                     <IconButton icon="scale" size={24} iconColor={paperTheme.colors.primary} />
                     <View>
                       <Text style={[styles.routeWeightLabel, { color: paperTheme.colors.textSecondary }]}>
-                        Today's Total Net Weight
+                        Total Net Weight
                       </Text>
                       {loadingRouteWeight ? (
                         <ActivityIndicator size="small" color={paperTheme.colors.primary} />
@@ -615,7 +675,6 @@ useEffect(() => {
                           {routeTotalWeight} kg
                         </Text>
                       )}
-                     
                     </View>
                   </View>
                   <IconButton 
@@ -653,6 +712,17 @@ useEffect(() => {
                     bellowBestRef.current?.focus();
                   }}
                 />
+                {/* Best Leaf Weight Display with Label */}
+                {routeTotalWeight !== '0.00' && bestLeaf ? (
+                  <View style={styles.weightDisplayContainer}>
+                    <Text style={[styles.weightDisplayLabel, { color: paperTheme.colors.textSecondary }]}>
+                      Best Leaf Weight:
+                    </Text>
+                    <Text style={[styles.weightDisplayValue, { color: paperTheme.colors.success }]}>
+                      {bestLeafWeight} kg
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.percentageContainer}>
@@ -672,6 +742,17 @@ useEffect(() => {
                     poorRef.current?.focus();
                   }}
                 />
+                {/* Below Best Weight Display with Label */}
+                {routeTotalWeight !== '0.00' && bellowBest ? (
+                  <View style={styles.weightDisplayContainer}>
+                    <Text style={[styles.weightDisplayLabel, { color: paperTheme.colors.textSecondary }]}>
+                      Below Best Weight:
+                    </Text>
+                    <Text style={[styles.weightDisplayValue, { color: paperTheme.colors.warning }]}>
+                      {bellowBestWeight} kg
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.percentageContainer}>
@@ -688,6 +769,17 @@ useEffect(() => {
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
                 />
+                {/* Poor Weight Display with Label */}
+                {routeTotalWeight !== '0.00' && poor ? (
+                  <View style={styles.weightDisplayContainer}>
+                    <Text style={[styles.weightDisplayLabel, { color: paperTheme.colors.textSecondary }]}>
+                      Poor Weight:
+                    </Text>
+                    <Text style={[styles.weightDisplayValue, { color: paperTheme.colors.error }]}>
+                      {poorWeight} kg
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -803,6 +895,14 @@ const styles = StyleSheet.create({
     height: moderateScale(48),
     backgroundColor: 'transparent',
   },
+ routeRow: {
+  marginBottom: responsiveSpacing.md,
+},
+routeInputContainer: {
+  width: '100%',
+},
+
+  
   divider: {
     marginVertical: responsiveSpacing.md,
     height: 1,
@@ -832,6 +932,23 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(15),
     backgroundColor: 'transparent',
   },
+  // Updated styles for weight display with label
+  weightDisplayContainer: {
+    marginTop: responsiveSpacing.xs,
+    paddingVertical: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.sm,
+    backgroundColor: '#F5F5F5',
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+  },
+  weightDisplayLabel: {
+    fontSize: responsiveFontSize(10),
+    marginBottom: 2,
+  },
+  weightDisplayValue: {
+    fontSize: responsiveFontSize(14),
+    fontWeight: '700',
+  },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -848,6 +965,7 @@ const styles = StyleSheet.create({
   dateDialog: {
     maxHeight: '80%',
     borderRadius: moderateScale(20),
+    marginHorizontal: responsiveSpacing.md,
   },
   dialogScrollArea: {
     maxHeight: 400,
@@ -856,10 +974,11 @@ const styles = StyleSheet.create({
   simpleCalendarContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    padding: responsiveSpacing.md,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    width: '100%',
   },
   dayButton: {
     width: moderateScale(44),
@@ -868,8 +987,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: moderateScale(8),
     borderWidth: 1.5,
-    marginHorizontal: 2,
-    marginVertical: 2,
+    margin: 4,
     position: 'relative',
   },
   selectedDayButton: {
@@ -926,10 +1044,5 @@ const styles = StyleSheet.create({
   routeWeightValue: {
     fontSize: responsiveFontSize(18),
     fontWeight: 'bold',
-  },
-  routeWeightFormula: {
-    fontSize: responsiveFontSize(10),
-    fontStyle: 'italic',
-    marginTop: 2,
   },
 });

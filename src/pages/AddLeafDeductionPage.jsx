@@ -369,17 +369,21 @@ export default function AddLeafDeductionPage({ navigation }) {
     }
   };
 
-// Handle input changes with numeric only and auto-focus move
+  // Handle input changes with numeric only
   const handleBagWeightChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentBagWeight(numericText);
     
-    if (bagWeightTimerRef.current) clearTimeout(bagWeightTimerRef.current);
+    if (bagWeightTimerRef.current) {
+      clearTimeout(bagWeightTimerRef.current);
+    }
     
     if (numericText.length > 0) {
       bagWeightTimerRef.current = setTimeout(() => {
-        coarceRef.current?.focus();
-      }, 500); // 500ms delay like AddLeafCountPage
+        if (coarceRef.current) {
+          coarceRef.current.focus();
+        }
+      }, 500);
     }
   };
 
@@ -387,11 +391,15 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentCoarce(numericText);
     
-    if (coarceTimerRef.current) clearTimeout(coarceTimerRef.current);
+    if (coarceTimerRef.current) {
+      clearTimeout(coarceTimerRef.current);
+    }
     
     if (numericText.length > 0) {
       coarceTimerRef.current = setTimeout(() => {
-        waterRef.current?.focus();
+        if (waterRef.current) {
+          waterRef.current.focus();
+        }
       }, 500);
     }
   };
@@ -400,11 +408,15 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentWater(numericText);
     
-    if (waterTimerRef.current) clearTimeout(waterTimerRef.current);
+    if (waterTimerRef.current) {
+      clearTimeout(waterTimerRef.current);
+    }
     
     if (numericText.length > 0) {
       waterTimerRef.current = setTimeout(() => {
-        boiledRef.current?.focus();
+        if (boiledRef.current) {
+          boiledRef.current.focus();
+        }
       }, 500);
     }
   };
@@ -413,11 +425,15 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentBoiled(numericText);
     
-    if (boiledTimerRef.current) clearTimeout(boiledTimerRef.current);
+    if (boiledTimerRef.current) {
+      clearTimeout(boiledTimerRef.current);
+    }
     
     if (numericText.length > 0) {
       boiledTimerRef.current = setTimeout(() => {
-        rejectedRef.current?.focus();
+        if (rejectedRef.current) {
+          rejectedRef.current.focus();
+        }
       }, 500);
     }
   };
@@ -425,7 +441,6 @@ export default function AddLeafDeductionPage({ navigation }) {
   const handleRejectedChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentRejected(numericText);
-    // No timer for the last field
   };
 
   // Display values
@@ -776,56 +791,57 @@ const handleSave = async () => {
     );
   };
 
- // Input Row Component
-const InputRow = ({ 
-  label, 
-  value, 
-  onChange, 
-  icon, 
-  totalLabel, 
-  totalValue, 
-  totalColor, 
-  disabled = false,
-  inputRef = null,
-  onSubmitEditing = null,
-  returnKeyType = 'next'
-}) => (
-  <View style={styles.inputRow}>
-    <View style={[styles.inputContainer, { flex: 1.2 }]}>
-      <TextInput
-        ref={inputRef}
-        label={label}
-        value={value}
-        onChangeText={onChange}
-        mode="outlined"
-        disabled={disabled}
-        keyboardType="numeric" // Use numeric for number pad
-        left={<TextInput.Icon icon={icon} color={paperTheme.colors.primary} />}
-        style={styles.smallInput}
-        dense={true}
-        outlineStyle={styles.inputOutline}
-        onSubmitEditing={onSubmitEditing}
-        returnKeyType={returnKeyType}
-        blurOnSubmit={false}
-        // Removed maxLength to allow any length
-        theme={{ 
-          colors: { 
-            primary: paperTheme.colors.primary,
-            text: paperTheme.colors.text,
-            placeholder: paperTheme.colors.textSecondary,
-            background: paperTheme.colors.surface
-          } 
-        }}
-      />
+  // Input Row Component
+  const InputRow = ({ 
+    label, 
+    value, 
+    onChange, 
+    icon, 
+    totalLabel, 
+    totalValue, 
+    totalColor, 
+    keyboardType = 'numeric', 
+    disabled = false,
+    inputRef = null,
+    onSubmitEditing = null,
+    returnKeyType = 'next'
+  }) => (
+    <View style={styles.inputRow}>
+      <View style={[styles.inputContainer, { flex: 1.2 }]}>
+        <TextInput
+          ref={inputRef}
+          label={label}
+          value={value}
+          onChangeText={onChange}
+          mode="outlined"
+          disabled={disabled}
+          keyboardType="numeric"
+          left={<TextInput.Icon icon={icon} color={paperTheme.colors.primary} />}
+          style={styles.smallInput}
+          dense={true}
+          outlineStyle={styles.inputOutline}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={false}
+          theme={{ 
+            colors: { 
+              primary: paperTheme.colors.primary,
+              text: paperTheme.colors.text,
+              placeholder: paperTheme.colors.textSecondary,
+              background: paperTheme.colors.surface
+            } 
+          }}
+        />
+      </View>
+      <View style={[styles.totalContainer, { flex: 0.8 }]}>
+        <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
+        <Text style={[styles.totalValue, { color: totalColor }]}>
+          {totalValue} kg
+        </Text>
+      </View>
     </View>
-    <View style={[styles.totalContainer, { flex: 0.8 }]}>
-      <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
-      <Text style={[styles.totalValue, { color: totalColor }]}>
-        {totalValue} kg
-      </Text>
-    </View>
-  </View>
-);
+  );
+
 
  // Search Modal Component - UPDATED with safer property access
 const SearchModal = () => (

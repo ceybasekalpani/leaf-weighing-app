@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput, useTheme as usePaperTheme } from 'react-native-paper';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -13,21 +13,35 @@ export default function LoginPage({ navigation }) {
   const paperTheme = usePaperTheme();
   const { isDarkMode } = useTheme();
   const { login } = useAuth();
+  
+  // Create ref for password input
+  const passwordRef = useRef(null);
 
   const handleLogin = async () => {
-    // Validate inputs
-    if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both username and password');
+    // Trim and validate inputs
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+    
+    if (!trimmedUsername) {
+      Alert.alert('Error', 'Please enter username');
+      return;
+    }
+    
+    if (!trimmedPassword) {
+      Alert.alert('Error', 'Please enter password');
       return;
     }
 
     setLoading(true);
     
     try {
-      // Call login from AuthContext
-      const result = await login(username, password);
+      console.log('🔐 Attempting login for user:', trimmedUsername);
+      
+      // Call login from AuthContext with trimmed values
+      const result = await login(trimmedUsername, trimmedPassword);
       
       if (result.success) {
+        console.log('✅ Login successful for user:', trimmedUsername);
         // Navigate to main tabs on successful login
         navigation.replace('MainTabs');
       } else {
@@ -35,7 +49,7 @@ export default function LoginPage({ navigation }) {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       Alert.alert('Error', 'An error occurred during login');
     } finally {
       setLoading(false);
@@ -72,13 +86,13 @@ export default function LoginPage({ navigation }) {
             theme={{ colors: { primary: paperTheme.colors.primary } }}
             disabled={loading}
             returnKeyType="next"
-            onSubmitEditing={() => {
-              // Focus password field when next is pressed
-              // You would need to add a ref for password input
-            }}
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
 
           <TextInput
+            ref={passwordRef}
             label="Password"
             value={password}
             onChangeText={setPassword}
