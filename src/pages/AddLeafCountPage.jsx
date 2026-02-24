@@ -1,6 +1,8 @@
+import * as Device from 'expo-device';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
+  ActivityIndicator,
   Button,
   Card,
   Dialog,
@@ -12,7 +14,7 @@ import {
   TextInput,
   useTheme as usePaperTheme
 } from 'react-native-paper';
-import { leafCountApi } from '../api/leafCountApi';
+import { leafCountApi } from '../api/leafApi';
 import { useAuth } from '../context/AuthContext';
 import {
   moderateScale,
@@ -43,11 +45,12 @@ export default function AddLeafCountPage() {
   const [bellowBest, setBellowBest] = useState('');
   const [poor, setPoor] = useState('');
   
-  // New states for dynamic routes and route total weight
+  // States for dynamic routes and route total weight
   const [routes, setRoutes] = useState([]);
   const [routeTotalWeight, setRouteTotalWeight] = useState(0);
   const [loadingRouteWeight, setLoadingRouteWeight] = useState(false);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -65,14 +68,38 @@ export default function AddLeafCountPage() {
   const fetchRoutes = async () => {
     setLoadingRoutes(true);
     try {
+      console.log('🔍 Fetching routes...');
       const response = await leafCountApi.getRoutes();
-      if (response && response.success) {
-        setRoutes(response.data || []);
+      console.log('📥 Routes response:', JSON.stringify(response, null, 2));
+      
+      let routesData = [];
+      
+      if (response && response.data) {
+        if (Array.isArray(response.data)) {
+          routesData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          routesData = response.data.data;
+        } else if (response.data.routes && Array.isArray(response.data.routes)) {
+          routesData = response.data.routes;
+        }
+        
+        const routeNames = routesData.map(item => {
+          if (typeof item === 'string') {
+            return item;
+          } else if (item && typeof item === 'object') {
+            return item.routeName || item.name || item.Route || item.route || JSON.stringify(item);
+          }
+          return String(item);
+        }).filter(route => route && route.trim() !== '');
+        
+        console.log('✅ Processed routes:', routeNames);
+        setRoutes(routeNames);
       } else {
+        console.log('⚠️ Invalid response format');
         setRoutes([]);
       }
     } catch (error) {
-      console.error('Error fetching routes:', error);
+      console.error('❌ Error fetching routes:', error);
       Alert.alert('Error', 'Failed to load routes. Please check your connection.');
       setRoutes([]);
     } finally {
@@ -80,24 +107,44 @@ export default function AddLeafCountPage() {
     }
   };
 
+ // Update these functions in your AddLeafCountPage.jsx
+
 const fetchRouteTotalWeight = async (selectedRoute) => {
-  if (!selectedRoute || !date) {
-    console.log('⚠️ Cannot fetch weight - missing route or date:', { selectedRoute, date });
+  if (!selectedRoute || !date || !month) {
+    console.log('⚠️ Cannot fetch weight - missing route, date, or month:', { selectedRoute, date, month });
+    setRouteTotalWeight(0);
     return;
   }
   
   setLoadingRouteWeight(true);
   try {
-    console.log('🔍 Fetching weight for:', { route: selectedRoute, date });
+    console.log('🔍 Fetching weight for:', { route: selectedRoute, date, month });
     
-    const response = await leafCountApi.getRouteTotalWeight(selectedRoute, date);
-    console.log('📥 API Response:', response);
+    // Pass both date and month to the API
+    const response = await leafCountApi.getRouteTotalWeight(selectedRoute, date, month);
+    console.log('📥 Weight response:', JSON.stringify(response, null, 2));
     
-    if (response && response.success) {
-      setRouteTotalWeight(response.data?.totalWeight || 0);
-      console.log('✅ Weight set to:', response.data?.totalWeight);
+    if (response && response.data) {
+      let weight = 0;
+      
+      if (response.data.success && response.data.data) {
+        weight = response.data.data.totalWeight || 0;
+        
+        console.log('✅ Route total weight calculated:', weight);
+        if (response.data.data.gross !== undefined && response.data.data.deductions !== undefined) {
+          console.log(`✅ Formula: Gross(${response.data.data.gross}) - Deductions(${response.data.data.deductions}) = ${weight}`);
+        }
+      } else if (response.data.totalWeight !== undefined) {
+        weight = response.data.totalWeight;
+      } else if (response.data.weight !== undefined) {
+        weight = response.data.weight;
+      } else if (typeof response.data === 'number') {
+        weight = response.data;
+      }
+      
+      setRouteTotalWeight(weight);
     } else {
-      console.log('⚠️ API returned unsuccessful:', response);
+      console.log('⚠️ Invalid response format');
       setRouteTotalWeight(0);
     }
   } catch (error) {
@@ -108,22 +155,20 @@ const fetchRouteTotalWeight = async (selectedRoute) => {
   }
 };
 
-// Add this useEffect to watch for changes
+// Update the useEffect to include month in dependencies
 useEffect(() => {
-  console.log('🔄 Route or date changed:', { route, date });
-  if (route && date) {
+  console.log('🔄 Route, date, or month changed:', { route, date, month });
+  if (route && date && month) {
     fetchRouteTotalWeight(route);
   } else {
     setRouteTotalWeight(0);
   }
-}, [route, date]);
+}, [route, date, month]); // Added month to dependencies
 
-  // Generate months dynamically (current month and previous months only)
   const generateMonths = () => {
     const months = [];
     const currentDate = new Date();
     
-    // Generate current month and previous months (no future months)
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       const monthName = date.toLocaleString('default', { month: 'short' });
@@ -135,21 +180,16 @@ useEffect(() => {
   };
 
   const months = generateMonths();
-
   const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
-  // Handle auto-focus with delay for Best Leaf
   const handleBestLeafChange = (text) => {
-    // Allow only numbers
     const numericText = text.replace(/[^0-9]/g, '');
     setBestLeaf(numericText);
     
-    // Clear existing timer
     if (bestLeafTimerRef.current) {
       clearTimeout(bestLeafTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
     if (numericText.length > 0) {
       bestLeafTimerRef.current = setTimeout(() => {
         if (bellowBestRef.current) {
@@ -159,18 +199,14 @@ useEffect(() => {
     }
   };
 
-  // Handle auto-focus with delay for Below Best
   const handleBellowBestChange = (text) => {
-    // Allow only numbers
     const numericText = text.replace(/[^0-9]/g, '');
     setBellowBest(numericText);
     
-    // Clear existing timer
     if (bellowBestTimerRef.current) {
       clearTimeout(bellowBestTimerRef.current);
     }
     
-    // Set new timer to move to next field after 500ms of no typing
     if (numericText.length > 0) {
       bellowBestTimerRef.current = setTimeout(() => {
         if (poorRef.current) {
@@ -180,15 +216,12 @@ useEffect(() => {
     }
   };
 
-  // Handle Poor field change (no auto-focus as it's the last field)
   const handlePoorChange = (text) => {
-    // Allow only numbers
     const numericText = text.replace(/[^0-9]/g, '');
     setPoor(numericText);
   };
 
   const handleSave = async () => {
-    // Clear any pending timers when saving
     if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
     if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
@@ -202,32 +235,88 @@ useEffect(() => {
       return;
     }
 
+    setLoading(true);
+
     try {
+      const getDeviceName = () => {
+        try {
+          if (Platform.OS === 'web') {
+            return window.location.hostname || 'Web Browser';
+          } else if (Platform.OS === 'android') {
+            const deviceName = Device.deviceName;
+            const modelName = Device.modelName;
+            const brand = Device.brand;
+            
+            if (deviceName) {
+              return deviceName;
+            } else if (brand && modelName) {
+              const formattedBrand = brand.charAt(0).toUpperCase() + brand.slice(1);
+              return `${formattedBrand} ${modelName}`;
+            } else {
+              return `Android ${Device.osVersion || ''}`;
+            }
+          } else if (Platform.OS === 'ios') {
+            const deviceName = Device.deviceName;
+            const modelName = Device.modelName;
+            
+            if (deviceName) {
+              return deviceName;
+            } else if (modelName) {
+              return `iPhone ${modelName}`;
+            } else {
+              return `iOS ${Device.osVersion || ''}`;
+            }
+          } else {
+            return 'Mobile App';
+          }
+        } catch (error) {
+          console.error('Error getting device name:', error);
+          return Platform.OS === 'android' ? 'Android Device' : 
+                 Platform.OS === 'ios' ? 'iOS Device' : 
+                 'Mobile App';
+        }
+      };
+
+      const pcName = getDeviceName();
+      const mode = 'App';
+      const loggedInUserName = user?.username || 'mobile_user';
+
       const leafCountData = {
         date,
         month,
         route,
         bestLeaf: bestLeaf || '0',
         bellowBest: bellowBest || '0',
-        poor: poor || '0'
+        poor: poor || '0',
+        userName: loggedInUserName,
+        mode: mode,
+        pcName: pcName
       };
 
-      const response = await leafCountApi.saveLeafCount(leafCountData, user);
+      console.log('💾 Saving leaf count:', leafCountData);
       
-      if (response && response.success) {
-        Alert.alert('Success', 'Leaf count saved successfully');
-        handleClear();
+      const response = await leafCountApi.saveLeafCount(leafCountData, user);
+      console.log('📥 Save response:', JSON.stringify(response, null, 2));
+      
+      if (response && response.data) {
+        if (response.data.success || response.data.message?.includes('success')) {
+          Alert.alert('Success', 'Leaf count saved successfully');
+          handleClear();
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to save');
+        }
       } else {
-        Alert.alert('Error', response?.message || 'Failed to save');
+        Alert.alert('Error', 'Failed to save. Please try again.');
       }
     } catch (error) {
-      console.error('Error saving leaf count:', error);
+      console.error('❌ Error saving leaf count:', error);
       Alert.alert('Error', 'Failed to save. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClear = () => {
-    // Clear any pending timers when clearing
     if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
     if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
@@ -242,9 +331,9 @@ useEffect(() => {
   };
 
   const handleRouteSelect = (selectedRoute) => {
+    console.log('✅ Route selected:', selectedRoute);
     setRoute(selectedRoute);
     setRouteMenuVisible(false);
-    fetchRouteTotalWeight(selectedRoute);
   };
 
   const openDateDialog = () => {
@@ -265,7 +354,6 @@ useEffect(() => {
     }
   };
 
-  // Generate days for the calendar (1-31)
   const renderDayButtons = () => {
     const days = [];
     const today = new Date().getDate();
@@ -313,7 +401,6 @@ useEffect(() => {
     return days;
   };
 
-  // Date Header Component
   const DateHeader = () => {
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
@@ -475,9 +562,10 @@ useEffect(() => {
                       mode="outlined"
                       placeholder={loadingRoutes ? "Loading routes..." : "Select Route"}
                       left={<TextInput.Icon icon="map-marker" />}
-                      right={loadingRoutes ? 
-                        <TextInput.Icon icon="loading" /> : 
-                        <TextInput.Icon icon="chevron-down" />
+                      right={
+                        loadingRoutes ? 
+                          <TextInput.Icon icon={() => <ActivityIndicator size="small" />} /> : 
+                          <TextInput.Icon icon="chevron-down" />
                       }
                       style={styles.input}
                       dense={true}
@@ -489,15 +577,15 @@ useEffect(() => {
             >
               {loadingRoutes ? (
                 <Menu.Item
-                  title="Loading..."
+                  title="Loading routes..."
                   disabled
                 />
               ) : routes.length > 0 ? (
-                routes.map((r) => (
+                routes.map((routeName, index) => (
                   <Menu.Item
-                    key={r}
-                    onPress={() => handleRouteSelect(r)}
-                    title={r}
+                    key={`${routeName}-${index}`}
+                    onPress={() => handleRouteSelect(routeName)}
+                    title={routeName}
                   />
                 ))
               ) : (
@@ -518,11 +606,16 @@ useEffect(() => {
                     <IconButton icon="scale" size={24} iconColor={paperTheme.colors.primary} />
                     <View>
                       <Text style={[styles.routeWeightLabel, { color: paperTheme.colors.textSecondary }]}>
-                        Today's Total Weight
+                        Today's Total Net Weight
                       </Text>
-                      <Text style={[styles.routeWeightValue, { color: paperTheme.colors.primary }]}>
-                        {loadingRouteWeight ? 'Loading...' : `${routeTotalWeight} kg`}
-                      </Text>
+                      {loadingRouteWeight ? (
+                        <ActivityIndicator size="small" color={paperTheme.colors.primary} />
+                      ) : (
+                        <Text style={[styles.routeWeightValue, { color: paperTheme.colors.primary }]}>
+                          {routeTotalWeight} kg
+                        </Text>
+                      )}
+                     
                     </View>
                   </View>
                   <IconButton 
@@ -606,7 +699,8 @@ useEffect(() => {
                 style={[styles.button, styles.saveButton]}
                 icon="content-save"
                 buttonColor={paperTheme.colors.primary}
-                disabled={!route || !date || !month}
+                loading={loading}
+                disabled={!route || !date || !month || loading}
               >
                 Save
               </Button>
@@ -616,6 +710,7 @@ useEffect(() => {
                 style={styles.button}
                 icon="close"
                 textColor={paperTheme.colors.error}
+                disabled={loading}
               >
                 Clear
               </Button>
@@ -831,5 +926,10 @@ const styles = StyleSheet.create({
   routeWeightValue: {
     fontSize: responsiveFontSize(18),
     fontWeight: 'bold',
+  },
+  routeWeightFormula: {
+    fontSize: responsiveFontSize(10),
+    fontStyle: 'italic',
+    marginTop: 2,
   },
 });

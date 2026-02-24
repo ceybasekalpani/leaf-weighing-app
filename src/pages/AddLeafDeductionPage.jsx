@@ -1,3 +1,4 @@
+import * as Device from 'expo-device'; // Add this with your other imports
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -368,21 +369,17 @@ export default function AddLeafDeductionPage({ navigation }) {
     }
   };
 
-  // Handle input changes with numeric only
+// Handle input changes with numeric only and auto-focus move
   const handleBagWeightChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentBagWeight(numericText);
     
-    if (bagWeightTimerRef.current) {
-      clearTimeout(bagWeightTimerRef.current);
-    }
+    if (bagWeightTimerRef.current) clearTimeout(bagWeightTimerRef.current);
     
     if (numericText.length > 0) {
       bagWeightTimerRef.current = setTimeout(() => {
-        if (coarceRef.current) {
-          coarceRef.current.focus();
-        }
-      }, 500);
+        coarceRef.current?.focus();
+      }, 500); // 500ms delay like AddLeafCountPage
     }
   };
 
@@ -390,15 +387,11 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentCoarce(numericText);
     
-    if (coarceTimerRef.current) {
-      clearTimeout(coarceTimerRef.current);
-    }
+    if (coarceTimerRef.current) clearTimeout(coarceTimerRef.current);
     
     if (numericText.length > 0) {
       coarceTimerRef.current = setTimeout(() => {
-        if (waterRef.current) {
-          waterRef.current.focus();
-        }
+        waterRef.current?.focus();
       }, 500);
     }
   };
@@ -407,15 +400,11 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentWater(numericText);
     
-    if (waterTimerRef.current) {
-      clearTimeout(waterTimerRef.current);
-    }
+    if (waterTimerRef.current) clearTimeout(waterTimerRef.current);
     
     if (numericText.length > 0) {
       waterTimerRef.current = setTimeout(() => {
-        if (boiledRef.current) {
-          boiledRef.current.focus();
-        }
+        boiledRef.current?.focus();
       }, 500);
     }
   };
@@ -424,15 +413,11 @@ export default function AddLeafDeductionPage({ navigation }) {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentBoiled(numericText);
     
-    if (boiledTimerRef.current) {
-      clearTimeout(boiledTimerRef.current);
-    }
+    if (boiledTimerRef.current) clearTimeout(boiledTimerRef.current);
     
     if (numericText.length > 0) {
       boiledTimerRef.current = setTimeout(() => {
-        if (rejectedRef.current) {
-          rejectedRef.current.focus();
-        }
+        rejectedRef.current?.focus();
       }, 500);
     }
   };
@@ -440,6 +425,7 @@ export default function AddLeafDeductionPage({ navigation }) {
   const handleRejectedChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setCurrentRejected(numericText);
+    // No timer for the last field
   };
 
   // Display values
@@ -522,11 +508,54 @@ const handleSave = async () => {
   // Get the logged-in username from AuthContext
   const loggedInUserName = user?.username || 'mobile_user';
   
+  // Get device name using expo-device (synchronous)
+  const getDeviceName = () => {
+    try {
+      if (Platform.OS === 'web') {
+        return window.location.hostname || 'Web Browser';
+      } else if (Platform.OS === 'android') {
+        const deviceName = Device.deviceName;
+        const modelName = Device.modelName;
+        const brand = Device.brand;
+        
+        if (deviceName) {
+          return deviceName;
+        } else if (brand && modelName) {
+          const formattedBrand = brand.charAt(0).toUpperCase() + brand.slice(1);
+          return `${formattedBrand} ${modelName}`;
+        } else {
+          return `Android ${Device.osVersion || ''}`;
+        }
+      } else if (Platform.OS === 'ios') {
+        const deviceName = Device.deviceName;
+        const modelName = Device.modelName;
+        
+        if (deviceName) {
+          return deviceName;
+        } else if (modelName) {
+          return `iPhone ${modelName}`;
+        } else {
+          return `iOS ${Device.osVersion || ''}`;
+        }
+      } else {
+        return 'Mobile App';
+      }
+    } catch (error) {
+      console.error('Error getting device name:', error);
+      return Platform.OS === 'android' ? 'Android Device' : 
+             Platform.OS === 'ios' ? 'iOS Device' : 
+             'Mobile App';
+    }
+  };
+  
+  const pcName = getDeviceName();
+  
   // Set mode to 'App' as requested
   const mode = 'App';
 
-  console.log('💾 Logged in user:', loggedInUserName, 'Mode:', mode);
+  console.log('💾 Logged in user:', loggedInUserName, 'Mode:', mode, 'Device:', pcName);
 
+  // Rest of your handleSave code remains the same...
   // Calculate current deduction values
   const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
   const currentCoarceVal = parseFloat(currentCoarce) || 0;
@@ -534,45 +563,28 @@ const handleSave = async () => {
   const currentBoiledVal = parseFloat(currentBoiled) || 0;
   const currentRejectedVal = parseFloat(currentRejected) || 0;
 
-  // FIX: Add this line to calculate total deductions
-  const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
-                                 currentBoiledVal + currentRejectedVal;
-
-  // Prepare deduction data - Gross and NetWeight set to 0 as required
+  // Prepare deduction data
   const deductionData = {
     regNo: parseInt(regNo),
     supplierName: name,
     route,
     leafType,
-    Gross: 0, // Always 0 for deduction entries
-    NetWeight: 0, // Always 0 for deduction entries
+    Gross: 0,
+    NetWeight: 0,
     userName: loggedInUserName,
     month,
-    mode: mode
+    mode: mode,
+    pcName: pcName
   };
 
-  // Only add fields that have values (these are the individual deduction values)
-  if (currentBagWeightVal > 0) {
-    deductionData.BagWeight = currentBagWeightVal;
-  }
-  
-  if (currentCoarceVal > 0) {
-    deductionData.Coarse = currentCoarceVal; // dbService uses Coarse
-  }
-  
-  if (currentWaterVal > 0) {
-    deductionData.Water = currentWaterVal;
-  }
-  
-  if (currentBoiledVal > 0) {
-    deductionData.Boild = currentBoiledVal; // dbService uses Boild
-  }
-  
-  if (currentRejectedVal > 0) {
-    deductionData.Rejected = currentRejectedVal;
-  }
+  // Add deduction fields if they have values
+  if (currentBagWeightVal > 0) deductionData.BagWeight = currentBagWeightVal;
+  if (currentCoarceVal > 0) deductionData.Coarse = currentCoarceVal;
+  if (currentWaterVal > 0) deductionData.Water = currentWaterVal;
+  if (currentBoiledVal > 0) deductionData.Boild = currentBoiledVal;
+  if (currentRejectedVal > 0) deductionData.Rejected = currentRejectedVal;
 
-  console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode);
+  console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode, 'Device:', deductionData.pcName);
   console.log('💾 Deduction data:', deductionData);
 
   try {
@@ -589,14 +601,12 @@ const handleSave = async () => {
       setSnackbarMessage('Deduction saved successfully');
       setSnackbarVisible(true);
       
-      // FIX: Clear ALL fields including supplier information
-      // Reset supplier fields
+      // Reset all fields
       setRegNo('');
       setName('');
       setRoute('');
       setLastSearchedRegNo('');
       
-      // Reset summary totals to ZERO (not updated with new values)
       setSummaryTotals({
         bags: '0',
         gross: '0',
@@ -608,14 +618,12 @@ const handleSave = async () => {
         netWeight: '0'
       });
       
-      // Clear current input fields
       setCurrentBagWeight('');
       setCurrentCoarce('');
       setCurrentWater('');
       setCurrentBoiled('');
       setCurrentRejected('');
       
-      // Reset original values
       setOriginalValues({
         bagWeight: '',
         coarce: '',
@@ -624,7 +632,6 @@ const handleSave = async () => {
         rejected: ''
       });
       
-      // Focus back on registration number for next entry
       setTimeout(() => regNoRef.current?.focus(), 500);
     } else {
       setSnackbarMessage(response.data.message || 'Failed to save deduction');
@@ -769,59 +776,57 @@ const handleSave = async () => {
     );
   };
 
-  // Input Row Component
-  const InputRow = ({ 
-    label, 
-    value, 
-    onChange, 
-    icon, 
-    totalLabel, 
-    totalValue, 
-    totalColor, 
-    keyboardType = 'numeric', 
-    disabled = false,
-    inputRef = null,
-    onSubmitEditing = null,
-    returnKeyType = 'next'
-  }) => (
-    <View style={styles.inputRow}>
-      <View style={[styles.inputContainer, { flex: 1.2 }]}>
-        <TextInput
-          ref={inputRef}
-          label={label}
-          value={value}
-          onChangeText={onChange}
-          mode="outlined"
-          disabled={disabled}
-          keyboardType="number-pad"
-          left={<TextInput.Icon icon={icon} color={paperTheme.colors.primary} />}
-          style={styles.smallInput}
-          dense={true}
-          outlineStyle={styles.inputOutline}
-          onSubmitEditing={onSubmitEditing}
-          returnKeyType={returnKeyType}
-          blurOnSubmit={false}
-          maxLength={6}
-          theme={{ 
-            colors: { 
-              primary: paperTheme.colors.primary,
-              text: paperTheme.colors.text,
-              placeholder: paperTheme.colors.textSecondary,
-              background: paperTheme.colors.surface
-            } 
-          }}
-        />
-      </View>
-      <View style={[styles.totalContainer, { flex: 0.8 }]}>
-        <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
-        <Text style={[styles.totalValue, { color: totalColor }]}>
-          {totalValue} kg
-        </Text>
-      </View>
+ // Input Row Component
+const InputRow = ({ 
+  label, 
+  value, 
+  onChange, 
+  icon, 
+  totalLabel, 
+  totalValue, 
+  totalColor, 
+  disabled = false,
+  inputRef = null,
+  onSubmitEditing = null,
+  returnKeyType = 'next'
+}) => (
+  <View style={styles.inputRow}>
+    <View style={[styles.inputContainer, { flex: 1.2 }]}>
+      <TextInput
+        ref={inputRef}
+        label={label}
+        value={value}
+        onChangeText={onChange}
+        mode="outlined"
+        disabled={disabled}
+        keyboardType="numeric" // Use numeric for number pad
+        left={<TextInput.Icon icon={icon} color={paperTheme.colors.primary} />}
+        style={styles.smallInput}
+        dense={true}
+        outlineStyle={styles.inputOutline}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType={returnKeyType}
+        blurOnSubmit={false}
+        // Removed maxLength to allow any length
+        theme={{ 
+          colors: { 
+            primary: paperTheme.colors.primary,
+            text: paperTheme.colors.text,
+            placeholder: paperTheme.colors.textSecondary,
+            background: paperTheme.colors.surface
+          } 
+        }}
+      />
     </View>
-  );
+    <View style={[styles.totalContainer, { flex: 0.8 }]}>
+      <Text style={[styles.totalLabel, { color: paperTheme.colors.textSecondary }]}>{totalLabel}</Text>
+      <Text style={[styles.totalValue, { color: totalColor }]}>
+        {totalValue} kg
+      </Text>
+    </View>
+  </View>
+);
 
-  // Search Modal Component
  // Search Modal Component - UPDATED with safer property access
 const SearchModal = () => (
   <Modal
