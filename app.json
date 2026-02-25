@@ -11,14 +11,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ceybaseit.leafweighingapp"
-      // Remove the ios.splash section
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#E6F4FE"
-      }
-      // Remove the android.splash section
+      },
+      "package": "com.ceybaseit.leafweighingapp"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
