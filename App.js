@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
@@ -8,7 +9,7 @@ import { LeafDataProvider } from './src/context/LeafDataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-// Keep splash screen visible while we fetch resources
+// Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
@@ -56,11 +57,12 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Simulate a minimum splash screen time
+        // Simulate loading resources
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn(e);
       } finally {
+        // Tell the application to render
         setAppIsReady(true);
       }
     }
@@ -70,6 +72,7 @@ export default function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
+      // This tells the splash screen to hide immediately
       await SplashScreen.hideAsync();
     }
   }, [appIsReady]);
@@ -79,7 +82,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider onLayout={onLayoutRootView}>
+    <SafeAreaProvider style={styles.container} onLayout={onLayoutRootView}>
       <ThemeProvider>
         <AuthProvider>
           <AppContent />
@@ -88,3 +91,9 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

@@ -27,7 +27,12 @@
       "splash": {
         "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "mdpi": "./assets/images/splash-icon.png",
+        "hdpi": "./assets/images/splash-icon.png",
+        "xhdpi": "./assets/images/splash-icon.png",
+        "xxhdpi": "./assets/images/splash-icon.png",
+        "xxxhdpi": "./assets/images/splash-icon.png"
       },
       "package": "com.ceybaseit.leafweighingapp",
       "edgeToEdgeEnabled": true,
@@ -37,7 +42,16 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "imageWidth": 200,
+          "enableFullScreenImage_legacy": true
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
