@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
@@ -72,22 +72,28 @@ export default function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      // This tells the splash screen to hide immediately
       await SplashScreen.hideAsync();
     }
   }, [appIsReady]);
 
   if (!appIsReady) {
-    return null;
+    return (
+      <SafeAreaProvider style={styles.container}>
+        {/* Empty view while splash is showing */}
+        <View style={styles.container} />
+      </SafeAreaProvider>
+    );
   }
 
   return (
-    <SafeAreaProvider style={styles.container} onLayout={onLayoutRootView}>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ThemeProvider>
+    <SafeAreaProvider style={styles.container}>
+      <View style={styles.container} onLayout={onLayoutRootView}>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ThemeProvider>
+      </View>
     </SafeAreaProvider>
   );
 }

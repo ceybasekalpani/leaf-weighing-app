@@ -5,38 +5,20 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "leafweighingapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "leafweighingapp",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ceybaseit.leafweighingapp",
-      "splash": {
-        "image": "./assets/images/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#ffffff"
-      }
+      "bundleIdentifier": "com.ceybaseit.leafweighingapp"
+      // Remove the ios.splash section
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#E6F4FE"
-      },
-      "splash": {
-        "image": "./assets/images/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#ffffff",
-        "mdpi": "./assets/images/splash-icon.png",
-        "hdpi": "./assets/images/splash-icon.png",
-        "xhdpi": "./assets/images/splash-icon.png",
-        "xxhdpi": "./assets/images/splash-icon.png",
-        "xxxhdpi": "./assets/images/splash-icon.png"
-      },
-      "package": "com.ceybaseit.leafweighingapp",
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      }
+      // Remove the android.splash section
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -46,10 +28,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
           "imageWidth": 200,
-          "enableFullScreenImage_legacy": true
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ],
