@@ -72,17 +72,17 @@ export default function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      await SplashScreen.hideAsync();
+      // Add a small delay to ensure everything is rendered
+      setTimeout(async () => {
+        await SplashScreen.hideAsync();
+      }, 100);
     }
   }, [appIsReady]);
 
+  // Don't return empty view while splash is showing
+  // Instead, return null and let the native splash screen handle it
   if (!appIsReady) {
-    return (
-      <SafeAreaProvider style={styles.container}>
-        {/* Empty view while splash is showing */}
-        <View style={styles.container} />
-      </SafeAreaProvider>
-    );
+    return null;
   }
 
   return (
