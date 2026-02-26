@@ -142,7 +142,6 @@ const InputRow = ({
     </View>
   </View>
 );
-
 const SearchModal = ({ 
   visible, 
   onClose, 
@@ -160,84 +159,110 @@ const SearchModal = ({
     transparent={true}
     onRequestClose={onClose}
   >
-    <View style={styles.modalOverlay}>
-      <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
-        <View style={styles.modalHeader}>
-          <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>Search Suppliers</Text>
-          <IconButton 
-            icon="close" 
-            size={24} 
-            onPress={onClose}
-            iconColor={paperTheme.colors.error}
-          />
-        </View>
-
-        <View style={styles.modalSearchContainer}>
-          <TextInput
-            ref={searchInputRef}
-            placeholder="Type registration number or name..."
-            value={searchQuery}
-            onChangeText={onSearchChange}
-            mode="outlined"
-            left={<TextInput.Icon icon="magnify" />}
-            right={searchLoading ? <ActivityIndicator size="small" /> : null}
-            style={styles.modalSearchInput}
-            autoFocus={true}
-          />
-        </View>
-
-        {searchResults.length > 0 ? (
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item, index) => {
-              const key = item?.RegNo?.toString() || item?.regNo?.toString() || `item-${index}`;
-              return key;
-            }}
-            renderItem={({ item }) => {
-              const regNo = item?.RegNo || item?.regNo || 'N/A';
-              const supplierName = item?.SupplierName || item?.supplierName || item?.name || 'Unknown';
-              const route = item?.Route || item?.route || '';
-              
-              return (
-                <TouchableOpacity
-                  style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
-                  onPress={() => onSelectSupplier({
-                    RegNo: regNo,
-                    SupplierName: supplierName,
-                    Route: route
-                  })}
-                >
-                  <View style={styles.searchResultLeft}>
-                    <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
-                      #{regNo}
-                    </Text>
-                    <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
-                      {supplierName}
-                    </Text>
-                    {route ? (
-                      <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
-                        Route: {route}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
-                </TouchableOpacity>
-              );
-            }}
-            style={styles.searchResultsList}
-          />
-        ) : searchQuery.length > 0 && !searchLoading ? (
-          <View style={styles.noResultsContainer}>
-            <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
-              No suppliers found
+    <KeyboardAvoidingView 
+      style={styles.modalOverlay}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+    >
+      <TouchableOpacity 
+        style={styles.modalBackdrop} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <View 
+          style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: paperTheme.colors.primary }]}>
+              Search Suppliers
             </Text>
+            <IconButton 
+              icon="close" 
+              size={24} 
+              onPress={onClose}
+              iconColor={paperTheme.colors.error}
+            />
           </View>
-        ) : null}
-      </View>
-    </View>
+
+          <View style={styles.modalSearchContainer}>
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Type registration number or name..."
+              value={searchQuery}
+              onChangeText={onSearchChange}
+              mode="outlined"
+              left={<TextInput.Icon icon="magnify" />}
+              right={searchLoading ? <ActivityIndicator size="small" /> : null}
+              style={styles.modalSearchInput}
+              autoFocus={true}
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                if (searchQuery.length >= 1) {
+                  performSearch(searchQuery);
+                }
+              }}
+            />
+          </View>
+
+          {searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item, index) => {
+                const key = item?.RegNo?.toString() || item?.regNo?.toString() || `item-${index}`;
+                return key;
+              }}
+              renderItem={({ item }) => {
+                const regNo = item?.RegNo || item?.regNo || 'N/A';
+                const supplierName = item?.SupplierName || item?.supplierName || item?.name || 'Unknown';
+                const route = item?.Route || item?.route || '';
+                
+                return (
+                  <TouchableOpacity
+                    style={[styles.searchResultItem, { borderBottomColor: paperTheme.colors.border }]}
+                    onPress={() => onSelectSupplier({
+                      RegNo: regNo,
+                      SupplierName: supplierName,
+                      Route: route
+                    })}
+                  >
+                    <View style={styles.searchResultLeft}>
+                      <Text style={[styles.searchResultRegNo, { color: paperTheme.colors.primary }]}>
+                        #{regNo}
+                      </Text>
+                      <Text style={[styles.searchResultName, { color: paperTheme.colors.text }]}>
+                        {supplierName}
+                      </Text>
+                      {route ? (
+                        <Text style={[styles.searchResultRoute, { color: paperTheme.colors.textSecondary }]}>
+                          Route: {route}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <IconButton icon="chevron-right" size={20} iconColor={paperTheme.colors.primary} />
+                  </TouchableOpacity>
+                );
+              }}
+              style={styles.searchResultsList}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.searchResultsContent}
+            />
+          ) : searchQuery.length > 0 && !searchLoading ? (
+            <View style={styles.noResultsContainer}>
+              <Text style={[styles.noResultsText, { color: paperTheme.colors.textSecondary }]}>
+                No suppliers found
+              </Text>
+            </View>
+          ) : null}
+          
+          {/* Add some bottom padding for keyboard */}
+          <View style={{ height: Platform.OS === 'ios' ? 20 : 10 }} />
+        </View>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   </Modal>
 );
-
 // ===== MAIN COMPONENT =====
 
 export default function AddLeafDeductionPage({ navigation }) {
@@ -1570,4 +1595,22 @@ const styles = StyleSheet.create({
   noResultsText: {
     fontSize: responsiveFontSize(16),
   },
+  modalBackdrop: {
+  flex: 1,
+  justifyContent: 'flex-end',
+},
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+},
+modalContent: {
+  borderTopLeftRadius: moderateScale(24),
+  borderTopRightRadius: moderateScale(24),
+  padding: responsiveSpacing.lg,
+  maxHeight: '90%', // Increased from 80% to give more space
+  width: '100%',
+},
+searchResultsContent: {
+  paddingBottom: responsiveSpacing.md,
+},
 });

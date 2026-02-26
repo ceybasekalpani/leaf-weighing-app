@@ -1,13 +1,17 @@
 ﻿import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useState } from 'react';
-import { ImageBackground, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { LeafDataProvider } from './src/context/LeafDataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
+
+const splashSource = require('./assets/images/splash-icon.png');
+const splashAsset = Image.resolveAssetSource(splashSource);
+const splashAspectRatio = splashAsset.width / splashAsset.height;
 
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationLight: MD3LightTheme,
@@ -48,18 +52,30 @@ function AppContent() {
   );
 }
 
+function LaunchSplash() {
+  return (
+    <View style={styles.splashWrap}>
+      <Image
+        source={splashSource}
+        resizeMode="cover"
+        style={[styles.splashImageBottom, { aspectRatio: splashAspectRatio }]}
+      />
+    </View>
+  );
+}
+
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
+  const nativeSplashHidden = useRef(false);
 
   useEffect(() => {
     SplashScreen.preventAutoHideAsync().catch(() => {
-      // Native splash was likely already prevented.
+      // Native splash may already be prevented.
     });
 
     async function prepare() {
       try {
-        // Replace this with actual startup loading if needed.
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn(e);
@@ -72,30 +88,29 @@ export default function App() {
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
+    if (!nativeSplashHidden.current) {
+      nativeSplashHidden.current = true;
+      await SplashScreen.hideAsync().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     if (!appIsReady) {
       return;
     }
 
-    await SplashScreen.hideAsync();
-
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setShowLaunchScreen(false);
-    }, 900);
-  }, [appIsReady]);
+    }, 350);
 
-  if (!appIsReady) {
-    return null;
-  }
+    return () => clearTimeout(timer);
+  }, [appIsReady]);
 
   return (
     <SafeAreaProvider style={styles.container}>
       <View style={styles.container} onLayout={onLayoutRootView}>
-        {showLaunchScreen ? (
-          <ImageBackground
-            source={require('./assets/images/splash-icon.png')}
-            style={styles.splashImage}
-            resizeMode="cover"
-          />
+        {!appIsReady || showLaunchScreen ? (
+          <LaunchSplash />
         ) : (
           <ThemeProvider>
             <AuthProvider>
@@ -112,9 +127,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  splashImage: {
+  splashWrap: {
     flex: 1,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  splashImageBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 10,
     width: '100%',
-    height: '100%',
+    height: undefined,
   },
 });
+
