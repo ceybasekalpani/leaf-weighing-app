@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "leaf-weighing-app",
     "slug": "leaf-weighing-app",
@@ -8,6 +8,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "leafweighingapp",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ceybaseit.leafweighingapp",
@@ -26,12 +31,7 @@
       "splash": {
         "image": "./assets/images/splash-icon.png",
         "resizeMode": "cover",
-        "backgroundColor": "#ffffff",
-        "mdpi": "./assets/images/splash-icon.png",
-        "hdpi": "./assets/images/splash-icon.png",
-        "xhdpi": "./assets/images/splash-icon.png",
-        "xxhdpi": "./assets/images/splash-icon.png",
-        "xxxhdpi": "./assets/images/splash-icon.png"
+        "backgroundColor": "#ffffff"
       }
     },
     "web": {
@@ -44,6 +44,7 @@
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
+          "imageWidth": 1200,
           "enableFullScreenImage_legacy": true
         }
       ]
