@@ -1,4 +1,4 @@
-﻿import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
@@ -9,10 +9,11 @@ import { LeafDataProvider } from './src/context/LeafDataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-const splashSource = require('./assets/images/splash-icon.png');
-const splashAsset = Image.resolveAssetSource(splashSource);
-const splashAspectRatio = splashAsset.width / splashAsset.height;
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Native splash may already be prevented.
+});
 
+const splashSource = require('./assets/images/splash-icon.png');
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationLight: MD3LightTheme,
   reactNavigationDark: MD3DarkTheme,
@@ -57,8 +58,8 @@ function LaunchSplash() {
     <View style={styles.splashWrap}>
       <Image
         source={splashSource}
-        resizeMode="cover"
-        style={[styles.splashImageBottom, { aspectRatio: splashAspectRatio }]}
+        resizeMode="contain"
+        style={styles.splashImage}
       />
     </View>
   );
@@ -70,10 +71,6 @@ export default function App() {
   const nativeSplashHidden = useRef(false);
 
   useEffect(() => {
-    SplashScreen.preventAutoHideAsync().catch(() => {
-      // Native splash may already be prevented.
-    });
-
     async function prepare() {
       try {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -88,11 +85,11 @@ export default function App() {
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
-    if (!nativeSplashHidden.current) {
+    if (appIsReady && !nativeSplashHidden.current) {
       nativeSplashHidden.current = true;
       await SplashScreen.hideAsync().catch(() => {});
     }
-  }, []);
+  }, [appIsReady]);
 
   useEffect(() => {
     if (!appIsReady) {
@@ -129,16 +126,15 @@ const styles = StyleSheet.create({
   },
   splashWrap: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
+    backgroundColor: '#000000',
+    justifyContent: 'flex-end',
   },
-  splashImageBottom: {
+  splashImage: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 10,
+    bottom: 20,
     width: '100%',
-    height: undefined,
+    height: '100%',
   },
 });
-

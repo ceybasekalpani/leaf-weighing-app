@@ -1,9 +1,9 @@
-﻿{
+{
   "expo": {
     "name": "leaf-weighing-app",
     "slug": "leaf-weighing-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -11,7 +11,12 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000",
+      "dark": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      }
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +25,12 @@
       "splash": {
         "image": "./assets/images/splash-icon.png",
         "resizeMode": "cover",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000",
+        "tablet": {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#000000"
+        }
       }
     },
     "android": {
@@ -32,7 +42,7 @@
       "splash": {
         "image": "./assets/images/splash-icon.png",
         "resizeMode": "cover",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       }
     },
     "web": {
@@ -44,8 +54,12 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "cover",
-          "backgroundColor": "#ffffff",
-          "enableFullScreenImage_legacy": true
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "cover",
+            "backgroundColor": "#000000"
+          }
         }
       ]
     ],
@@ -54,4 +68,3 @@
     }
   }
 }
-
