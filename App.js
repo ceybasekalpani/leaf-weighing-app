@@ -1,6 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -84,11 +84,13 @@ export default function App() {
     prepare();
   }, []);
 
-  const onLayoutRootView = useCallback(async () => {
-    if (appIsReady && !nativeSplashHidden.current) {
-      nativeSplashHidden.current = true;
-      await SplashScreen.hideAsync().catch(() => {});
+  useEffect(() => {
+    if (!appIsReady || nativeSplashHidden.current) {
+      return;
     }
+
+    nativeSplashHidden.current = true;
+    SplashScreen.hideAsync().catch(() => {});
   }, [appIsReady]);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider style={styles.container}>
-      <View style={styles.container} onLayout={onLayoutRootView}>
+      <View style={styles.container}>
         {!appIsReady || showLaunchScreen ? (
           <LaunchSplash />
         ) : (
