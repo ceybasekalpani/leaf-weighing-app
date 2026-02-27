@@ -150,6 +150,7 @@ const SearchModal = ({
   searchResults, 
   searchLoading, 
   onSelectSupplier,
+  onPerformSearch, // Add this prop
   paperTheme,
   searchInputRef
 }) => (
@@ -199,7 +200,7 @@ const SearchModal = ({
               returnKeyType="search"
               onSubmitEditing={() => {
                 if (searchQuery.length >= 1) {
-                  performSearch(searchQuery);
+                  onPerformSearch(searchQuery); // Use the prop instead of direct call
                 }
               }}
             />
@@ -1274,17 +1275,18 @@ export default function AddLeafDeductionPage({ navigation }) {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      <SearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchInputChange}
-        searchResults={searchResults}
-        searchLoading={searchLoading}
-        onSelectSupplier={selectSupplier}
-        paperTheme={paperTheme}
-        searchInputRef={searchInputRef}
-      />
+     <SearchModal
+  visible={searchModalVisible}
+  onClose={() => setSearchModalVisible(false)}
+  searchQuery={searchQuery}
+  onSearchChange={handleSearchInputChange}
+  searchResults={searchResults}
+  searchLoading={searchLoading}
+  onSelectSupplier={selectSupplier}
+  onPerformSearch={performSearch} // Add this line
+  paperTheme={paperTheme}
+  searchInputRef={searchInputRef}
+/>
 
       <Snackbar
         visible={snackbarVisible}
