@@ -8,6 +8,10 @@ import { AuthProvider } from './src/context/AuthContext';
 import { LeafDataProvider } from './src/context/LeafDataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import './src/utils/directTest';
+import { initGlobalErrorLogger } from './src/utils/errorLogger';
+
+initGlobalErrorLogger();
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be prevented.
