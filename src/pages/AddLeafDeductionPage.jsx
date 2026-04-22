@@ -429,7 +429,9 @@ export default function AddLeafDeductionPage({ navigation }) {
         setRoute(response.data.data.route || '');
       }
     } catch (error) {
-      console.error('❌ Error searching supplier:', error);
+      if (error?.response?.status !== 404) {
+        console.error('❌ Error searching supplier:', error);
+      }
       if (regNo === regNoValue) {
         setName('');
         setRoute('');
@@ -712,19 +714,8 @@ export default function AddLeafDeductionPage({ navigation }) {
     const waterChanged = parseFloat(currentWater || 0) !== parseFloat(originalValues.water || 0);
     const boiledChanged = parseFloat(currentBoiled || 0) !== parseFloat(originalValues.boiled || 0);
     const rejectedChanged = parseFloat(currentRejected || 0) !== parseFloat(originalValues.rejected || 0);
-    
-    const changed = bagWeightChanged || coarceChanged || waterChanged || boiledChanged || rejectedChanged;
-    
-    // Improved debugging
-    console.log('hasValueChanged:', changed, {
-      bagWeight: { current: currentBagWeight, original: originalValues.bagWeight, changed: bagWeightChanged },
-      coarce: { current: currentCoarce, original: originalValues.coarce, changed: coarceChanged },
-      water: { current: currentWater, original: originalValues.water, changed: waterChanged },
-      boiled: { current: currentBoiled, original: originalValues.boiled, changed: boiledChanged },
-      rejected: { current: currentRejected, original: originalValues.rejected, changed: rejectedChanged }
-    });
-    
-    return changed;
+
+    return bagWeightChanged || coarceChanged || waterChanged || boiledChanged || rejectedChanged;
   };
 
   const handleSave = async () => {

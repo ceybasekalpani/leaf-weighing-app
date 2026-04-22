@@ -13,7 +13,7 @@ import {
   Text,
   useTheme as usePaperTheme
 } from 'react-native-paper';
-import { collectionViewApi } from '../api/leafApi'; // Add this import
+import { collectionViewApi } from '../api/leafApi'; 
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
   isTablet,
@@ -108,18 +108,20 @@ export default function ViewLeafCollectionPage({ navigation }) {
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      console.log('📥 Fetching today\'s collections from API');
       const response = await collectionViewApi.getTodayCollections();
-      
+
       if (response.data.success) {
-        console.log(`✅ Received ${response.data.data.length} grouped collections`);
         setCollections(response.data.data);
       } else {
-        console.error('❌ API returned success: false');
         setCollections([]);
       }
     } catch (error) {
-      console.error('❌ Error fetching collections:', error);
+      const isNetworkError = !error.response || error.message === 'Network Error';
+      if (isNetworkError) {
+        console.warn('⚠️ Collections: Cannot reach server. Check network connection.');
+      } else {
+        console.error('❌ Error fetching collections:', error);
+      }
       setCollections([]);
     } finally {
       setLoading(false);

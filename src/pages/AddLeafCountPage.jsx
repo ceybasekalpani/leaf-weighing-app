@@ -27,7 +27,7 @@ import {
 export default function AddLeafCountPage() {
   const paperTheme = usePaperTheme();
   const { user } = useAuth();
-  
+ 
   // Create refs for each input field
   const bestLeafRef = useRef(null);
   const bellowBestRef = useRef(null);
