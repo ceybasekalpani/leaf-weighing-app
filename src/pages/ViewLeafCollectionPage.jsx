@@ -13,7 +13,7 @@ import {
   Text,
   useTheme as usePaperTheme
 } from 'react-native-paper';
-import { collectionViewApi } from '../api/leafApi'; 
+import { collectionViewApi } from '../api/leafApi';
 import { getCurrentDate, getCurrentMonth } from '../utils/dateUtils';
 import {
   isTablet,
@@ -353,7 +353,6 @@ export default function ViewLeafCollectionPage({ navigation }) {
                   'Boiled': `${selectedItem.totalBoiled} kg`,
                   'Rejected': `${selectedItem.totalRejected} kg`,
                   'Net Weight': `${selectedItem.netWeight} kg`,
-                  'Collections': selectedItem.collectionCount || 'N/A',
                   'Deductions': selectedItem.deductionCount || 'N/A'
                 }).map(([label, value], index) => (
                   <View key={index} style={[styles.dialogRow, { borderBottomColor: paperTheme.colors.border }]}>

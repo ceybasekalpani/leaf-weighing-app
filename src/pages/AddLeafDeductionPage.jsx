@@ -34,7 +34,7 @@ import {
 } from '../utils/responsiveUtils';
 
 // ===== MOVED COMPONENTS OUTSIDE MAIN FUNCTION =====
-
+                                  
 const DateHeader = ({ paperTheme, month }) => {
   const currentDate = new Date();
   const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
@@ -535,15 +535,16 @@ export default function AddLeafDeductionPage({ navigation }) {
         const data = response.data.data;
         
         // Set summary totals from database
+        // Server returns camelCase fields (totalBags) so read both cases for safety
         setSummaryTotals({
-          bags: data.TotalBags?.toString() || '0',
-          gross: data.TotalGross?.toString() || '0',
-          bagWeight: Math.round(data.TotalBagWeight || 0).toString(),
-          coarce: Math.round(data.TotalCoarse || 0).toString(),
-          water: Math.round(data.TotalWater || 0).toString(),
-          boiled: Math.round(data.TotalBoiled || 0).toString(),
-          rejected: Math.round(data.TotalRejected || 0).toString(),
-          netWeight: data.TotalNetWeight?.toString() || '0'
+          bags: (data.totalBags ?? data.TotalBags ?? 0).toString(),
+          gross: (data.totalGross ?? data.TotalGross ?? 0).toString(),
+          bagWeight: Math.round(data.totalBagWeight ?? data.TotalBagWeight ?? 0).toString(),
+          coarce: Math.round(data.totalCoarse ?? data.TotalCoarse ?? 0).toString(),
+          water: Math.round(data.totalWater ?? data.TotalWater ?? 0).toString(),
+          boiled: Math.round(data.totalBoiled ?? data.TotalBoiled ?? 0).toString(),
+          rejected: Math.round(data.totalRejected ?? data.TotalRejected ?? 0).toString(),
+          netWeight: (data.totalNetWeight ?? data.TotalNetWeight ?? 0).toString()
         });
         
         // Reset current input values and original values
@@ -561,7 +562,7 @@ export default function AddLeafDeductionPage({ navigation }) {
           rejected: ''
         });
         
-        setSnackbarMessage(`Summary loaded - Gross: ${data.TotalGross || 0} kg, Net: ${data.TotalNetWeight || 0} kg`);
+        setSnackbarMessage(`Summary loaded - Gross: ${data.totalGross ?? data.TotalGross ?? 0} kg, Net: ${data.totalNetWeight ?? data.TotalNetWeight ?? 0} kg`);
         setSnackbarVisible(true);
         
         // Focus on bag weight
@@ -821,7 +822,7 @@ export default function AddLeafDeductionPage({ navigation }) {
     if (currentBagWeightVal > 0) deductionData.BagWeight = currentBagWeightVal;
     if (currentCoarceVal > 0) deductionData.Coarse = currentCoarceVal;
     if (currentWaterVal > 0) deductionData.Water = currentWaterVal;
-    if (currentBoiledVal > 0) deductionData.Boild = currentBoiledVal;
+    if (currentBoiledVal > 0) deductionData.boiled = currentBoiledVal;
     if (currentRejectedVal > 0) deductionData.Rejected = currentRejectedVal;
 
     console.log('💾 Saving deduction with username:', deductionData.userName, 'Mode:', deductionData.mode, 'Device:', deductionData.pcName);
