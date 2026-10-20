@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import {
-  ActivityIndicator,
   Button,
   Chip,
   DataTable,
@@ -259,7 +258,13 @@ export default function ViewLeafCollectionPage({ navigation }) {
               {filteredCollections.length > 0 ? (
                 filteredCollections.slice(from, to).map((item, index) => (
                   <View 
-                    key={item.regNo || index}
+                    key={[
+                      item.regNo ?? 'collection',
+                      item.date ?? '',
+                      item.month ?? '',
+                      item.route ?? '',
+                      from + index,
+                    ].join('-')}
                     style={[
                       styles.dataRow,
                       { backgroundColor: index % 2 === 0 ? paperTheme.colors.surface : paperTheme.colors.background }

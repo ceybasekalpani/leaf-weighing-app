@@ -1,4 +1,6 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { NavigationContainer } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
@@ -22,6 +24,8 @@ const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationLight: MD3LightTheme,
   reactNavigationDark: MD3DarkTheme,
 });
+
+const renderPaperIcon = (props) => <MaterialCommunityIcons {...props} />;
 
 function AppContent() {
   const { isDarkMode, theme: customTheme } = useTheme();
@@ -47,7 +51,7 @@ function AppContent() {
   };
 
   return (
-    <PaperProvider theme={paperTheme}>
+    <PaperProvider theme={paperTheme} settings={{ icon: renderPaperIcon }}>
       <LeafDataProvider>
         <NavigationContainer theme={navigationTheme}>
           <AppNavigator />
@@ -70,11 +74,16 @@ function LaunchSplash() {
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts(MaterialCommunityIcons.font);
   const [appIsReady, setAppIsReady] = useState(false);
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
   const nativeSplashHidden = useRef(false);
 
   useEffect(() => {
+    if (!fontsLoaded && !fontError) {
+      return;
+    }
+
     async function prepare() {
       try {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -86,7 +95,7 @@ export default function App() {
     }
 
     prepare();
-  }, []);
+  }, [fontError, fontsLoaded]);
 
   useEffect(() => {
     if (!appIsReady || nativeSplashHidden.current) {

@@ -82,7 +82,6 @@ export default {
     orientation: "default",
     icon: "./assets/images/icon.png",
     userInterfaceStyle: "automatic",
-    newArchEnabled: true,
     scheme: "leafweighingapp",
     splash: {
       image: "./assets/images/splash-icon.png",
@@ -125,6 +124,9 @@ export default {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-status-bar",
       [
         "expo-splash-screen",
         {

@@ -1,7 +1,8 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BottomNavigation, useTheme as usePaperTheme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ThemeToggle from '../../components/ThemeToggle';
+import { useAuth } from '../context/AuthContext';
 import AddLeafCountPage from '../pages/AddLeafCountPage';
 import AddLeafDeductionPage from '../pages/AddLeafDeductionPage';
 import ViewLeafCollectionPage from '../pages/ViewLeafCollectionPage';
@@ -10,6 +11,9 @@ const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator() {
   const paperTheme = usePaperTheme();
+  const { user } = useAuth();
+  const canAddDeduction = user?.permissions?.isCanAddDeduction === true;
+  const canAddCount = user?.permissions?.isCanAddCount === true;
 
   return (
     <Tab.Navigator
@@ -54,7 +58,7 @@ export default function BottomTabNavigator() {
                 iconName = 'counter';
                 break;
             }
-            return <Icon name={iconName} size={24} color={color} />;
+            return <MaterialCommunityIcons name={iconName} size={24} color={color} />;
           }}
           getLabelText={({ route }) => route.name}
           activeColor={paperTheme.colors.primary}
@@ -63,6 +67,7 @@ export default function BottomTabNavigator() {
         />
       )}
     >
+      {canAddDeduction && (
       <Tab.Screen 
         name="Add Deduction" 
         component={AddLeafDeductionPage}
@@ -70,6 +75,7 @@ export default function BottomTabNavigator() {
           title: '🍃 Leaf Deduction',
         }}
       />
+      )}
       <Tab.Screen 
         name="View Collection" 
         component={ViewLeafCollectionPage}
@@ -77,6 +83,7 @@ export default function BottomTabNavigator() {
           title: '📋 Leaf Collections',
         }}
       />
+      {canAddCount && (
       <Tab.Screen 
         name="Add Count" 
         component={AddLeafCountPage}
@@ -84,6 +91,7 @@ export default function BottomTabNavigator() {
           title: '📊 Leaf Count',
         }}
       />
+      )}
     </Tab.Navigator>
   );
 }

@@ -2,9 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Device from 'expo-device';
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
-  ActivityIndicator,
   Button,
   Card,
   Dialog,
@@ -348,7 +347,10 @@ const handleSave = async () => {
     }
   } catch (error) {
     console.error('❌ Error saving leaf count:', error);
-    Alert.alert('Error', 'Failed to save. Please try again.');
+    const message = error.response?.status === 403
+      ? 'You do not have permission to add leaf counts.'
+      : error.response?.data?.message || 'Failed to save. Please try again.';
+    Alert.alert('Error', message);
   } finally {
     setLoading(false);
   }
@@ -789,9 +791,10 @@ const handleSave = async () => {
                 mode="contained" 
                 onPress={handleSave}
                 style={[styles.button, styles.saveButton]}
-                icon="content-save"
+                icon={loading
+                  ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
+                  : "content-save"}
                 buttonColor={paperTheme.colors.primary}
-                loading={loading}
                 disabled={!route || !date || !month || loading}
               >
                 Save

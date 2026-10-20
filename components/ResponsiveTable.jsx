@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, DataTable, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, View } from 'react-native';
+import { DataTable, Text, useTheme } from 'react-native-paper';
 import {
     getTableMinWidth,
     isTablet,
@@ -97,7 +97,7 @@ const ResponsiveTable = ({
             {/* Rows */}
             {data.slice(from, to).map((row, rowIndex) => (
               <DataTable.Row 
-                key={row.id || rowIndex}
+                key={`${row.id ?? row.regNo ?? 'row'}-${from + rowIndex}`}
                 onPress={() => onRowPress && onRowPress(row)}
                 style={[
                   styles.row,

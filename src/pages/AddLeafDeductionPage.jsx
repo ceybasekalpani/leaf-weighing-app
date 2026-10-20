@@ -1,6 +1,7 @@
 import * as Device from 'expo-device';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -11,7 +12,6 @@ import {
   View
 } from 'react-native';
 import {
-  ActivityIndicator,
   Button,
   Card,
   Divider,
@@ -38,7 +38,7 @@ import {
 const DateHeader = ({ paperTheme, month }) => {
   const currentDate = new Date();
   const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
-  
+
   return (
     <View style={styles.dateHeaderContainer}>
       <View style={[styles.dateBox, { 
@@ -210,8 +210,9 @@ const SearchModal = ({
             <FlatList
               data={searchResults}
               keyExtractor={(item, index) => {
-                const key = item?.RegNo?.toString() || item?.regNo?.toString() || `item-${index}`;
-                return key;
+                const regNo = item?.RegNo ?? item?.regNo ?? 'supplier';
+                const route = item?.Route ?? item?.route ?? '';
+                return `${regNo}-${route}-${index}`;
               }}
               renderItem={({ item }) => {
                 const regNo = item?.RegNo || item?.regNo || 'N/A';
@@ -880,7 +881,10 @@ export default function AddLeafDeductionPage({ navigation }) {
       }
     } catch (error) {
       console.error('❌ Error saving deduction:', error);
-      setSnackbarMessage(error.response?.data?.message || 'Failed to save deduction. Please try again.');
+      const message = error.response?.status === 403
+        ? 'You do not have permission to add deductions.'
+        : error.response?.data?.message || 'Failed to save deduction. Please try again.';
+      setSnackbarMessage(message);
       setSnackbarVisible(true);
     } finally {
       setLoading(false);
@@ -1094,10 +1098,11 @@ export default function AddLeafDeductionPage({ navigation }) {
               <Button
                 mode="contained"
                 onPress={handleLoadSummary}
-                loading={loadingSummary}
                 disabled={loadingSummary || !regNo || !name}
                 style={styles.loadSummaryButton}
-                icon="calculator"
+                icon={loadingSummary
+                  ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
+                  : "calculator"}
                 buttonColor={paperTheme.colors.secondary}
               >
                 Load Deduction Summary
@@ -1239,11 +1244,12 @@ export default function AddLeafDeductionPage({ navigation }) {
                 mode="contained" 
                 onPress={handleSave}
                 style={[styles.button, styles.saveButton]}
-                icon="content-save"
+                icon={loading
+                  ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
+                  : "content-save"}
                 buttonColor={paperTheme.colors.primary}
                 labelStyle={[styles.buttonLabel, { color: '#FFFFFF' }]}
                 contentStyle={styles.buttonContent}
-                loading={loading}
                 disabled={loading || !hasValueChanged()}
               >
                 Save

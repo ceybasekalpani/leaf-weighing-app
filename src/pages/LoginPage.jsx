@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput, useTheme as usePaperTheme } from 'react-native-paper';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
@@ -20,14 +20,13 @@ export default function LoginPage({ navigation }) {
   const handleLogin = async () => {
     // Trim and validate inputs
     const trimmedUsername = username.trim();
-    const trimmedPassword = password.trim();
     
     if (!trimmedUsername) {
       Alert.alert('Error', 'Please enter username');
       return;
     }
     
-    if (!trimmedPassword) {
+    if (!password) {
       Alert.alert('Error', 'Please enter password');
       return;
     }
@@ -38,7 +37,7 @@ export default function LoginPage({ navigation }) {
       console.log('🔐 Attempting login for user:', trimmedUsername);
       
       // Call login from AuthContext with trimmed values
-      const result = await login(trimmedUsername, trimmedPassword);
+      const result = await login(trimmedUsername, password);
       
       if (result.success) {
         console.log('✅ Login successful for user:', trimmedUsername);
@@ -97,6 +96,10 @@ export default function LoginPage({ navigation }) {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            textContentType="password"
             mode="outlined"
             left={<TextInput.Icon icon="lock" />}
             right={
@@ -118,7 +121,9 @@ export default function LoginPage({ navigation }) {
             style={styles.loginButton}
             contentStyle={styles.buttonContent}
             buttonColor={paperTheme.colors.primary}
-            loading={loading}
+            icon={loading
+              ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
+              : undefined}
             disabled={loading}
           >
             {loading ? 'Logging in...' : 'Login'}

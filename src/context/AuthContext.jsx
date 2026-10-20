@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
 
       const response = await axios.post(
         `${API_URL}/auth/login`,
-        { username: username.trim(), password: password.trim() },
+        { username: username.trim(), password },
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
 
@@ -61,7 +61,11 @@ export const AuthProvider = ({ children }) => {
         fullName: loginData.user.fullName,
         admin: loginData.user.admin,
         adminLevel: loginData.user.adminLevel,
-        permissions: loginData.user.permissions,
+        permissions: {
+          ...loginData.user.permissions,
+          isCanAddDeduction: loginData.user.permissions?.isCanAddDeduction === true,
+          isCanAddCount: loginData.user.permissions?.isCanAddCount === true,
+        },
         active: loginData.user.active,
         tempWorker: loginData.user.tempWorker,
         role: loginData.user.admin ? 'admin' : 'user',
