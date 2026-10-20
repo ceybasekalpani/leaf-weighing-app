@@ -1,3 +1,4 @@
+import { normalizeCollectionWeights } from '../utils/weightUtils';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import {
@@ -110,7 +111,7 @@ export default function ViewLeafCollectionPage({ navigation }) {
       const response = await collectionViewApi.getTodayCollections();
 
       if (response.data.success) {
-        setCollections(response.data.data);
+        setCollections((response.data.data ?? []).map(normalizeCollectionWeights));
       } else {
         setCollections([]);
       }
@@ -158,9 +159,9 @@ export default function ViewLeafCollectionPage({ navigation }) {
   useEffect(() => {
     const total = filteredCollections.length;
     const net = filteredCollections.reduce((sum, item) => 
-      sum + (parseInt(item.netWeight) || 0), 0
+      sum + (parseFloat(item.netWeight) || 0), 0
     );
-    setStats({ total, netWeight: net });
+    setStats({ total, netWeight: Number(net.toFixed(4)) });
   }, [filteredCollections]);
 
   const handleRowPress = (item) => {
@@ -244,6 +245,8 @@ export default function ViewLeafCollectionPage({ navigation }) {
               <Text style={[styles.headerCell, styles.nameColumn, { color: paperTheme.colors.primary }]}>Name</Text>
               <Text style={[styles.headerCell, styles.smallColumn, { color: paperTheme.colors.primary }]}>Bags</Text>
               <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Gross</Text>
+              <Text style={[styles.headerCell, styles.deductionColumn, { color: paperTheme.colors.primary }]}>Super Deduction</Text>
+              <Text style={[styles.headerCell, styles.deductionColumn, { color: paperTheme.colors.primary }]}>Normal Deduction</Text>
               <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Bag Wt</Text>
               <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Coarce</Text>
               <Text style={[styles.headerCell, styles.mediumColumn, { color: paperTheme.colors.primary }]}>Water</Text>
@@ -282,6 +285,12 @@ export default function ViewLeafCollectionPage({ navigation }) {
                     </Text>
                     <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
                       {item.gross || '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.deductionColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalSuperDeduction ?? '0'}
+                    </Text>
+                    <Text style={[styles.dataCell, styles.deductionColumn, { color: paperTheme.colors.text }]}>
+                      {item.totalNormalDeduction ?? '0'}
                     </Text>
                     <Text style={[styles.dataCell, styles.mediumColumn, { color: paperTheme.colors.text }]}>
                       {item.totalBagWeight || '0'}
@@ -357,6 +366,8 @@ export default function ViewLeafCollectionPage({ navigation }) {
                   'Water': `${selectedItem.totalWater} kg`,
                   'Boiled': `${selectedItem.totalBoiled} kg`,
                   'Rejected': `${selectedItem.totalRejected} kg`,
+                  'Super Deduction': `${selectedItem.totalSuperDeduction ?? '0'} kg`,
+                  'Normal Deduction': `${selectedItem.totalNormalDeduction ?? '0'} kg`,
                   'Net Weight': `${selectedItem.netWeight} kg`,
                   'Deductions': selectedItem.deductionCount || 'N/A'
                 }).map(([label, value], index) => (
@@ -510,6 +521,10 @@ const styles = StyleSheet.create({
   },
   mediumColumn: {
     width: moderateScale(80),
+    textAlign: 'center',
+  },
+  deductionColumn: {
+    width: moderateScale(140),
     textAlign: 'center',
   },
   routeColumn: {

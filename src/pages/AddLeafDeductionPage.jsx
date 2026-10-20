@@ -32,6 +32,7 @@ import {
   responsiveFontSize,
   responsiveSpacing
 } from '../utils/responsiveUtils';
+import { calculateNetWeightFromAdjustedGross, getAdjustedGrossFromSummary } from '../utils/weightUtils';
 
 // ===== MOVED COMPONENTS OUTSIDE MAIN FUNCTION =====
                                   
@@ -306,6 +307,8 @@ export default function AddLeafDeductionPage({ navigation }) {
     water: '0',
     boiled: '0',
     rejected: '0',
+    superDeduction: '0',
+    normalDeduction: '0',
     netWeight: '0'
   });
   
@@ -534,17 +537,21 @@ export default function AddLeafDeductionPage({ navigation }) {
       
       if (response.data.success && response.data.data) {
         const data = response.data.data;
-        
+
+        const adjustedGross = getAdjustedGrossFromSummary(data);
+
         // Set summary totals from database
         // Server returns camelCase fields (totalBags) so read both cases for safety
         setSummaryTotals({
           bags: (data.totalBags ?? data.TotalBags ?? 0).toString(),
-          gross: (data.totalGross ?? data.TotalGross ?? 0).toString(),
-          bagWeight: Math.round(data.totalBagWeight ?? data.TotalBagWeight ?? 0).toString(),
-          coarce: Math.round(data.totalCoarse ?? data.TotalCoarse ?? 0).toString(),
-          water: Math.round(data.totalWater ?? data.TotalWater ?? 0).toString(),
-          boiled: Math.round(data.totalBoiled ?? data.TotalBoiled ?? 0).toString(),
-          rejected: Math.round(data.totalRejected ?? data.TotalRejected ?? 0).toString(),
+          gross: adjustedGross.toString(),
+          bagWeight: (data.totalBagWeight ?? data.TotalBagWeight ?? 0).toString(),
+          coarce: (data.totalCoarse ?? data.TotalCoarse ?? 0).toString(),
+          water: (data.totalWater ?? data.TotalWater ?? 0).toString(),
+          boiled: (data.totalBoiled ?? data.TotalBoiled ?? 0).toString(),
+          rejected: (data.totalRejected ?? data.TotalRejected ?? 0).toString(),
+          superDeduction: (data.totalSuperDeduction ?? data.TotalSuperDeduction ?? 0).toString(),
+          normalDeduction: (data.totalNormalDeduction ?? data.TotalNormalDeduction ?? 0).toString(),
           netWeight: (data.totalNetWeight ?? data.TotalNetWeight ?? 0).toString()
         });
         
@@ -563,7 +570,7 @@ export default function AddLeafDeductionPage({ navigation }) {
           rejected: ''
         });
         
-        setSnackbarMessage(`Summary loaded - Gross: ${data.totalGross ?? data.TotalGross ?? 0} kg, Net: ${data.totalNetWeight ?? data.TotalNetWeight ?? 0} kg`);
+        setSnackbarMessage(`Summary loaded - Gross: ${adjustedGross} kg, Net: ${data.totalNetWeight ?? data.TotalNetWeight ?? 0} kg`);
         setSnackbarVisible(true);
         
         // Focus on bag weight
@@ -578,6 +585,8 @@ export default function AddLeafDeductionPage({ navigation }) {
           water: '0',
           boiled: '0',
           rejected: '0',
+          superDeduction: '0',
+          normalDeduction: '0',
           netWeight: '0'
         });
         setCurrentBagWeight('');
@@ -688,26 +697,16 @@ export default function AddLeafDeductionPage({ navigation }) {
   const displayedBoiled = (parseFloat(summaryTotals.boiled) + (parseFloat(currentBoiled) || 0)).toString();
   const displayedRejected = (parseFloat(summaryTotals.rejected) + (parseFloat(currentRejected) || 0)).toString();
 
-  // Calculate net weight for UI display only - DB will store 0 for deduction entries
-  const calculateNetWeight = () => {
-    const baseNetWeight = parseFloat(summaryTotals.netWeight) || 0;
-    
-    // Calculate total current deductions for net weight update
-    const currentBagWeightVal = parseFloat(currentBagWeight) || 0;
-    const currentCoarceVal = parseFloat(currentCoarce) || 0;
-    const currentWaterVal = parseFloat(currentWater) || 0;
-    const currentBoiledVal = parseFloat(currentBoiled) || 0;
-    const currentRejectedVal = parseFloat(currentRejected) || 0;
-
-    const totalCurrentDeductions = currentBagWeightVal + currentCoarceVal + currentWaterVal + 
-                                   currentBoiledVal + currentRejectedVal;
-    
-    const netWeight = baseNetWeight - totalCurrentDeductions;
-    
-    return Math.max(0, netWeight).toFixed(2);
-  };
-  
-  const displayedNetWeight = calculateNetWeight();
+  // The API gross already excludes Super and Normal deductions.
+  // Subtract only the five other saved/current deductions from that gross.
+  const displayedNetWeight = calculateNetWeightFromAdjustedGross({
+    gross: summaryTotals.gross,
+    bagWeight: displayedBagWeight,
+    coarse: displayedCoarce,
+    water: displayedWater,
+    boiled: displayedBoiled,
+    rejected: displayedRejected,
+  }).toString();
 
   // Check if a value has changed from original
   const hasValueChanged = () => {
@@ -811,8 +810,6 @@ export default function AddLeafDeductionPage({ navigation }) {
       supplierName: name,
       route,
       leafType,
-      Gross: 0,
-      NetWeight: 0,
       userName: loggedInUserName,
       month,
       mode: mode,
@@ -857,6 +854,8 @@ export default function AddLeafDeductionPage({ navigation }) {
           water: '0',
           boiled: '0',
           rejected: '0',
+          superDeduction: '0',
+          normalDeduction: '0',
           netWeight: '0'
         });
         
@@ -929,6 +928,8 @@ export default function AddLeafDeductionPage({ navigation }) {
       water: '0',
       boiled: '0',
       rejected: '0',
+      superDeduction: '0',
+      normalDeduction: '0',
       netWeight: '0'
     });
     setCurrentBagWeight('');
@@ -1129,6 +1130,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 <View>
                   <Text style={[styles.statLabel, { color: paperTheme.colors.textSecondary }]}>Gross (kg)</Text>
                   <Text style={[styles.statValue, { color: paperTheme.colors.success }]}>{summaryTotals.gross}</Text>
+                 
                 </View>
               </View>
             </View>
@@ -1224,7 +1226,7 @@ export default function AddLeafDeductionPage({ navigation }) {
 
             <Divider style={[styles.divider, { backgroundColor: paperTheme.colors.border }]} />
 
-            {/* Net Weight - UI Display Only */}
+            {/* Gross minus all saved and current deductions */}
             <View style={[styles.netWeightContainer, { 
               backgroundColor: paperTheme.colors.success + '10',
               borderColor: paperTheme.colors.success + '30'

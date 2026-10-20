@@ -199,6 +199,21 @@ export default function AddLeafCountPage() {
   const months = generateMonths();
   const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
+  const dismissDropdownMenus = () => {
+    setMonthMenuVisible(false);
+    setRouteMenuVisible(false);
+  };
+
+  const handleScreenTouch = () => {
+    if (monthMenuVisible || routeMenuVisible) {
+      dismissDropdownMenus();
+    }
+
+    // Observe touches without taking them away from inputs or scrolling.
+    // Menu items render in Paper's Portal, outside this screen's touch tree.
+    return false;
+  };
+
   // Handle Best Leaf change with auto-focus
   const handleBestLeafChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, '');
@@ -502,6 +517,7 @@ const handleSave = async () => {
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
+      onStartShouldSetResponderCapture={handleScreenTouch}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
@@ -562,9 +578,12 @@ const handleSave = async () => {
             {/* Month Dropdown */}
             <Menu
               visible={monthMenuVisible}
-              onDismiss={() => setMonthMenuVisible(false)}
+              onDismiss={dismissDropdownMenus}
               anchor={
-                <TouchableOpacity onPress={() => setMonthMenuVisible(true)} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => {
+                  setRouteMenuVisible(false);
+                  setMonthMenuVisible(true);
+                }} activeOpacity={0.7}>
                   <View pointerEvents="none">
                     <TextInput
                       label="Month"
@@ -598,9 +617,12 @@ const handleSave = async () => {
             <View style={styles.routeInputContainer}>
               <Menu
                 visible={routeMenuVisible}
-                onDismiss={() => setRouteMenuVisible(false)}
+                onDismiss={dismissDropdownMenus}
                 anchor={
-                  <TouchableOpacity onPress={() => setRouteMenuVisible(true)} activeOpacity={0.7}>
+                  <TouchableOpacity onPress={() => {
+                    setMonthMenuVisible(false);
+                    setRouteMenuVisible(true);
+                  }} activeOpacity={0.7}>
                     <View pointerEvents="none">
                       <TextInput
                         label="Route Name"
