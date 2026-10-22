@@ -1,11 +1,13 @@
+import useKeyboardAutoScroll from '../../hooks/useKeyboardAutoScroll';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Surface, Text, TextInput, useTheme as usePaperTheme } from 'react-native-paper';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
-export default function LoginPage({ navigation }) {
+export default function LoginPage() {
+  const { inputFocusProps, scrollViewProps } = useKeyboardAutoScroll();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -41,8 +43,7 @@ export default function LoginPage({ navigation }) {
       
       if (result.success) {
         console.log('✅ Login successful for user:', trimmedUsername);
-        // Navigate to main tabs on successful login
-        navigation.replace('MainTabs');
+        // AppNavigator switches to MainTabs when AuthContext updates.
       } else {
         // Show error message
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
@@ -60,6 +61,7 @@ export default function LoginPage({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: paperTheme.colors.background }]}
     >
+      <ScrollView {...scrollViewProps} contentContainerStyle={styles.scrollContent}>
       <Surface style={[styles.surface, { backgroundColor: paperTheme.colors.surface, elevation: 4 }]}>
         <View style={styles.themeToggleContainer}>
           <ThemeToggle />
@@ -76,6 +78,7 @@ export default function LoginPage({ navigation }) {
 
         <View style={styles.formContainer}>
           <TextInput
+            {...inputFocusProps}
             label="Username"
             value={username}
             onChangeText={setUsername}
@@ -92,6 +95,7 @@ export default function LoginPage({ navigation }) {
 
           <TextInput
             ref={passwordRef}
+            {...inputFocusProps}
             label="Password"
             value={password}
             onChangeText={setPassword}
@@ -130,6 +134,7 @@ export default function LoginPage({ navigation }) {
           </Button>
         </View>
       </Surface>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -137,6 +142,9 @@ export default function LoginPage({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },

@@ -1,22 +1,23 @@
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Device from 'expo-device';
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   Button,
   Card,
-  Dialog,
   Divider,
   IconButton,
   Menu,
-  Portal,
   Text,
   TextInput,
   useTheme as usePaperTheme
 } from 'react-native-paper';
+import useKeyboardAutoScroll from '../../hooks/useKeyboardAutoScroll';
 import { leafCountApi } from '../api/leafApi';
 import { useAuth } from '../context/AuthContext';
+import { getLeafCountDateRules, isLeafCountPeriodAllowed } from '../utils/leafCountDateUtils';
 import {
   moderateScale,
   responsiveFontSize,
@@ -25,6 +26,8 @@ import {
 
 export default function AddLeafCountPage() {
   const paperTheme = usePaperTheme();
+  const headerHeight = useHeaderHeight();
+  const { inputFocusProps, scrollViewProps } = useKeyboardAutoScroll();
   const { user } = useAuth();
  
   // Create refs for each input field
@@ -36,15 +39,18 @@ export default function AddLeafCountPage() {
   const bestLeafTimerRef = useRef(null);
   const bellowBestTimerRef = useRef(null);
   
-  const [date, setDate] = useState('');
-  const [showDateDialog, setShowDateDialog] = useState(false);
-  const [selectedDay, setSelectedDay] = useState('');
-  const [month, setMonth] = useState('');
+  const [dateRules, setDateRules] = useState(getLeafCountDateRules);
+  const { date, month } = dateRules;
   const [route, setRoute] = useState('');
   const [routeMenuVisible, setRouteMenuVisible] = useState(false);
   const [bestLeaf, setBestLeaf] = useState('');
   const [bellowBest, setBellowBest] = useState('');
   const [poor, setPoor] = useState('');
+
+  const qualityPercentages = [bestLeaf, bellowBest, poor].map(value => Number(value || 0));
+  const totalQualityPercentage = qualityPercentages.reduce((total, value) => total + value, 0);
+  const isQualityDistributionValid = qualityPercentages.every(value => Number.isFinite(value) && value >= 0 && value <= 100)
+    && totalQualityPercentage === 100;
   
   // States for dynamic routes and route total weight
   const [routes, setRoutes] = useState([]);
@@ -181,31 +187,38 @@ export default function AddLeafCountPage() {
     }
   }, [route, date, month]);
 
-  // Generate months dynamically
-  const generateMonths = () => {
-    const months = [];
-    const currentDate = new Date();
     
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const monthName = date.toLocaleString('default', { month: 'short' });
-      const year = date.getFullYear();
-      months.push(`${monthName}-${year}`);
-    }
+  const refreshDateRules = React.useCallback(() => {
+    const nextRules = getLeafCountDateRules();
+    setDateRules(previous => previous.key === nextRules.key ? previous : nextRules);
+    return nextRules;
+  }, []);
     
-    return months;
-  };
+  // Refresh at midnight/06:00 and when returning from the background or another tab.
+  useFocusEffect(React.useCallback(() => {
+    let boundaryTimer;
+    const refreshAndSchedule = () => {
+      clearTimeout(boundaryTimer);
+      const rules = refreshDateRules();
+      boundaryTimer = setTimeout(refreshAndSchedule, Math.max(1, rules.nextChangeAt - Date.now() + 50));
+    };
+    refreshAndSchedule();
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshAndSchedule();
+    });
+    return () => {
+      clearTimeout(boundaryTimer);
+      subscription.remove();
+    };
+  }, [refreshDateRules]));
 
-  const months = generateMonths();
-  const [monthMenuVisible, setMonthMenuVisible] = useState(false);
 
   const dismissDropdownMenus = () => {
-    setMonthMenuVisible(false);
     setRouteMenuVisible(false);
   };
 
   const handleScreenTouch = () => {
-    if (monthMenuVisible || routeMenuVisible) {
+    if (routeMenuVisible) {
       dismissDropdownMenus();
     }
 
@@ -262,12 +275,21 @@ const handleSave = async () => {
   if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
   if (!route || !date || !month) {
-    Alert.alert('Error', 'Please select date, month and route');
+    Alert.alert('Error', 'Please select a route');
     return;
   }
 
-  if (!bestLeaf && !bellowBest && !poor) {
-    Alert.alert('Error', 'Please enter at least one leaf count value');
+  if (!isLeafCountPeriodAllowed(date, month)) {
+    refreshDateRules();
+    Alert.alert('Date Updated', 'The date and month have been updated automatically. Please review them and save again.');
+    return;
+  }
+
+  if (!isQualityDistributionValid) {
+    Alert.alert(
+      'Invalid Quality Distribution',
+      `Best Leaf % + Below Best % + Poor % must equal exactly 100%. Current total: ${totalQualityPercentage}%.`
+    );
     return;
   }
 
@@ -375,13 +397,11 @@ const handleSave = async () => {
     if (bestLeafTimerRef.current) clearTimeout(bestLeafTimerRef.current);
     if (bellowBestTimerRef.current) clearTimeout(bellowBestTimerRef.current);
 
-    setDate('');
-    setMonth('');
+    refreshDateRules();
     setRoute('');
     setBestLeaf('');
     setBellowBest('');
     setPoor('');
-    setSelectedDay('');
     setRouteTotalWeight('0.00');
   };
 
@@ -392,77 +412,10 @@ const handleSave = async () => {
     setRouteMenuVisible(false);
   };
 
-  // Date Dialog Handlers
-  const openDateDialog = () => {
-    setSelectedDay(date);
-    setShowDateDialog(true);
-  };
-
-  const handleDaySelect = (day) => {
-    setSelectedDay(day);
-  };
-
-  const handleDateConfirm = () => {
-    if (selectedDay) {
-      setDate(selectedDay);
-      setShowDateDialog(false);
-    } else {
-      Alert.alert('Select Date', 'Please select a day');
-    }
-  };
-
-  // Render Day Buttons
-  const renderDayButtons = () => {
-    const days = [];
-    const today = new Date().getDate();
-    
-    for (let i = 1; i <= 31; i++) {
-      const isSelected = selectedDay === i.toString();
-      const isToday = i === today;
-      
-      days.push(
-        <TouchableOpacity
-          key={i}
-          onPress={() => handleDaySelect(i.toString())}
-          style={[
-            styles.dayButton,
-            isSelected && styles.selectedDayButton,
-            isToday && !isSelected && styles.todayButton,
-            { 
-              backgroundColor: isSelected 
-                ? paperTheme.colors.primary 
-                : isToday && !isSelected 
-                  ? paperTheme.colors.primary + '20'
-                  : 'transparent',
-              borderColor: isToday && !isSelected 
-                ? paperTheme.colors.primary 
-                : '#E0E0E0',
-            }
-          ]}
-        >
-          <Text 
-            style={[
-              styles.dayButtonText,
-              isSelected && styles.selectedDayButtonText,
-              isToday && !isSelected && styles.todayButtonText,
-              { color: isSelected ? 'white' : isToday && !isSelected ? paperTheme.colors.primary : paperTheme.colors.text }
-            ]}
-          >
-            {i}
-          </Text>
-          {isToday && !isSelected && (
-            <View style={[styles.todayDot, { backgroundColor: paperTheme.colors.primary }]} />
-          )}
-        </TouchableOpacity>
-      );
-    }
-    return days;
-  };
-
   // Date Header Component
   const DateHeader = () => {
     const currentDate = new Date();
-    const currentMonth = currentDate.toLocaleString('default', { month: 'short' });
+    const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
     const currentYear = currentDate.getFullYear();
     const dayName = currentDate.toLocaleString('default', { weekday: 'short' });
     
@@ -519,9 +472,10 @@ const handleSave = async () => {
       style={{ flex: 1 }} 
       onStartShouldSetResponderCapture={handleScreenTouch}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
     >
       <ScrollView 
+        {...scrollViewProps}
         style={[styles.container, { backgroundColor: paperTheme.colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
@@ -540,77 +494,29 @@ const handleSave = async () => {
               </Text>
             </View>
 
-            {/* Date Input with Dialog */}
-            <TouchableOpacity onPress={openDateDialog} activeOpacity={0.7}>
-              <View pointerEvents="none">
-                <TextInput
-                  label="Date"
-                  value={date}
-                  mode="outlined"
-                  placeholder="Select Date"
-                  left={<TextInput.Icon icon="calendar" />}
-                  style={styles.input}
-                  dense={true}
-                  editable={false}
-                />
-              </View>
-            </TouchableOpacity>
-
-            <Portal>
-              <Dialog 
-                visible={showDateDialog} 
-                onDismiss={() => setShowDateDialog(false)} 
-                style={[styles.dateDialog, { backgroundColor: paperTheme.colors.surface }]}
-              >
-                <Dialog.Title>Select Date</Dialog.Title>
-                <Dialog.ScrollArea style={styles.dialogScrollArea}>
-                  <View style={styles.simpleCalendarContainer}>
-                    {renderDayButtons()}
-                  </View>
-                </Dialog.ScrollArea>
-                <Dialog.Actions>
-                  <Button onPress={() => setShowDateDialog(false)}>Cancel</Button>
-                  <Button onPress={handleDateConfirm}>OK</Button>
-                </Dialog.Actions>
-              </Dialog>
-            </Portal>
-
-            {/* Month Dropdown */}
-            <Menu
-              visible={monthMenuVisible}
-              onDismiss={dismissDropdownMenus}
-              anchor={
-                <TouchableOpacity onPress={() => {
-                  setRouteMenuVisible(false);
-                  setMonthMenuVisible(true);
-                }} activeOpacity={0.7}>
-                  <View pointerEvents="none">
-                    <TextInput
-                      label="Month"
-                      value={month}
-                      mode="outlined"
-                      placeholder="Select Month"
-                      left={<TextInput.Icon icon="calendar-month" />}
-                      right={<TextInput.Icon icon="chevron-down" />}
-                      style={styles.input}
-                      dense={true}
-                      editable={false}
-                    />
-                  </View>
-                </TouchableOpacity>
-              }
-            >
-              {months.map((m) => (
-                <Menu.Item
-                  key={m}
-                  onPress={() => {
-                    setMonth(m);
-                    setMonthMenuVisible(false);
-                  }}
-                  title={m}
-                />
-              ))}
-            </Menu>
+            {/* Date and month are fixed by the 06:00 business-day cutoff. */}
+            <View pointerEvents="none">
+              <TextInput
+                label="Date"
+                value={date}
+                mode="outlined"
+                left={<TextInput.Icon icon="calendar" />}
+                style={styles.input}
+                dense={true}
+                editable={false}
+                showSoftInputOnFocus={false}
+              />
+              <TextInput
+                label="Month"
+                value={month}
+                mode="outlined"
+                left={<TextInput.Icon icon="calendar-month" />}
+                style={styles.input}
+                dense={true}
+                editable={false}
+                showSoftInputOnFocus={false}
+              />
+            </View>
 
             {/* Route Dropdown with Refresh Option in Menu */}
           <View style={styles.routeRow}>
@@ -619,10 +525,7 @@ const handleSave = async () => {
                 visible={routeMenuVisible}
                 onDismiss={dismissDropdownMenus}
                 anchor={
-                  <TouchableOpacity onPress={() => {
-                    setMonthMenuVisible(false);
-                    setRouteMenuVisible(true);
-                  }} activeOpacity={0.7}>
+                  <TouchableOpacity onPress={() => setRouteMenuVisible(true)} activeOpacity={0.7}>
                     <View pointerEvents="none">
                       <TextInput
                         label="Route Name"
@@ -723,6 +626,7 @@ const handleSave = async () => {
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.success }]}>Best Leaf</Text>
                 <TextInput
                   ref={bestLeafRef}
+                  {...inputFocusProps}
                   value={bestLeaf}
                   onChangeText={handleBestLeafChange}
                   mode="outlined"
@@ -753,6 +657,7 @@ const handleSave = async () => {
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.warning }]}>Below Best</Text>
                 <TextInput
                   ref={bellowBestRef}
+                  {...inputFocusProps}
                   value={bellowBest}
                   onChangeText={handleBellowBestChange}
                   mode="outlined"
@@ -783,6 +688,7 @@ const handleSave = async () => {
                 <Text style={[styles.percentageLabel, { color: paperTheme.colors.error }]}>Poor</Text>
                 <TextInput
                   ref={poorRef}
+                  {...inputFocusProps}
                   value={poor}
                   onChangeText={handlePoorChange}
                   mode="outlined"
@@ -807,6 +713,8 @@ const handleSave = async () => {
               </View>
             </View>
 
+
+
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <Button 
@@ -817,7 +725,7 @@ const handleSave = async () => {
                   ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
                   : "content-save"}
                 buttonColor={paperTheme.colors.primary}
-                disabled={!route || !date || !month || loading}
+                disabled={!route || !date || !month || !isQualityDistributionValid || loading}
               >
                 Save
               </Button>
@@ -986,64 +894,6 @@ routeInputContainer: {
   },
   saveButton: {
     elevation: 4,
-  },
-  dateDialog: {
-    maxHeight: '80%',
-    borderRadius: moderateScale(20),
-    marginHorizontal: responsiveSpacing.md,
-  },
-  dialogScrollArea: {
-    maxHeight: 400,
-    paddingHorizontal: 0,
-  },
-  simpleCalendarContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    width: '100%',
-  },
-  dayButton: {
-    width: moderateScale(44),
-    height: moderateScale(44),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: moderateScale(8),
-    borderWidth: 1.5,
-    margin: 4,
-    position: 'relative',
-  },
-  selectedDayButton: {
-    borderWidth: 0,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    transform: [{ scale: 1.05 }],
-  },
-  todayButton: {
-    borderWidth: 1.5,
-  },
-  dayButtonText: {
-    fontSize: responsiveFontSize(15),
-    fontWeight: '500',
-  },
-  selectedDayButtonText: {
-    fontWeight: '700',
-    color: 'white',
-  },
-  todayButtonText: {
-    fontWeight: '600',
-  },
-  todayDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
   routeWeightCard: {
     marginTop: responsiveSpacing.xs,

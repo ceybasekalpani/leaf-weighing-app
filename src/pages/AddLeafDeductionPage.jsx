@@ -1,3 +1,5 @@
+import { useHeaderHeight } from '@react-navigation/elements';
+import useKeyboardAutoScroll from '../../hooks/useKeyboardAutoScroll';
 import * as Device from 'expo-device';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -110,6 +112,7 @@ const InputRow = ({
   totalColor, 
   disabled = false,
   inputRef = null,
+  inputFocusProps,
   returnKeyType = 'next',
   onSubmitEditing = null,
   paperTheme // Added paperTheme as prop
@@ -118,6 +121,7 @@ const InputRow = ({
     <View style={[styles.inputContainer, { flex: 1.2 }]}>
       <TextInput
         ref={inputRef}
+        {...inputFocusProps}
         label={label}
         value={value}
         onChangeText={onChange}
@@ -270,6 +274,8 @@ const SearchModal = ({
 
 export default function AddLeafDeductionPage({ navigation }) {
   const paperTheme = usePaperTheme();
+  const headerHeight = useHeaderHeight();
+  const { inputFocusProps, scrollViewProps } = useKeyboardAutoScroll();
   const { addLeafDeduction } = useLeafData();
   const { user } = useAuth();
   const isTabletDevice = isTablet();
@@ -961,9 +967,10 @@ export default function AddLeafDeductionPage({ navigation }) {
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
     >
-      <ScrollView 
+      <ScrollView
+        {...scrollViewProps}
         style={[styles.container, { backgroundColor: paperTheme.colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -999,6 +1006,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 <View style={styles.regNoInputContainer}>
                   <TextInput
                     ref={regNoRef}
+                    {...inputFocusProps}
                     label="Registration Number"
                     value={regNo}
                     onChangeText={handleRegNoChange}
@@ -1095,7 +1103,7 @@ export default function AddLeafDeductionPage({ navigation }) {
                 }}
               />
 
-              {/* Load Summary Button - MUST CLICK THIS FIRST */}
+              {/* Refresh deduction summary */}
               <Button
                 mode="contained"
                 onPress={handleLoadSummary}
@@ -1103,10 +1111,10 @@ export default function AddLeafDeductionPage({ navigation }) {
                 style={styles.loadSummaryButton}
                 icon={loadingSummary
                   ? ({ color, size }) => <ActivityIndicator color={color} size={size} />
-                  : "calculator"}
+                  : "refresh"}
                 buttonColor={paperTheme.colors.secondary}
               >
-                Load Deduction Summary
+                Refresh Deduction Summary
               </Button>
             </View>
 
@@ -1142,6 +1150,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               <Text style={[styles.sectionTitle, { color: paperTheme.colors.primary }]}>Deductions</Text>
               
               <InputRow
+                inputFocusProps={inputFocusProps}
                 label="Bag Weight"
                 value={currentBagWeight}
                 onChange={handleBagWeightChange}
@@ -1159,6 +1168,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               />
 
               <InputRow
+                inputFocusProps={inputFocusProps}
                 label="Coarce"
                 value={currentCoarce}
                 onChange={handleCoarceChange}
@@ -1176,6 +1186,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               />
 
               <InputRow
+                inputFocusProps={inputFocusProps}
                 label="Water"
                 value={currentWater}
                 onChange={handleWaterChange}
@@ -1193,6 +1204,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               />
 
               <InputRow
+                inputFocusProps={inputFocusProps}
                 label="Boiled"
                 value={currentBoiled}
                 onChange={handleBoiledChange}
@@ -1210,6 +1222,7 @@ export default function AddLeafDeductionPage({ navigation }) {
               />
 
               <InputRow
+                inputFocusProps={inputFocusProps}
                 label="Rejected"
                 value={currentRejected}
                 onChange={handleRejectedChange}

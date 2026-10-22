@@ -1,6 +1,10 @@
+import { StyleSheet, View } from 'react-native';
+import LogoutButton from '../../components/LogoutButton';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomNavigation, useTheme as usePaperTheme } from 'react-native-paper';
+import { CommonActions } from '@react-navigation/native';
+import { useTheme as usePaperTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import AddLeafCountPage from '../pages/AddLeafCountPage';
@@ -11,13 +15,28 @@ const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator() {
   const paperTheme = usePaperTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const canAddDeduction = user?.permissions?.isCanAddDeduction === true;
   const canAddCount = user?.permissions?.isCanAddCount === true;
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenListeners={({ navigation, route }) => ({
+        tabPress: (event) => {
+          if (event.defaultPrevented || navigation.isFocused()) {
+            return;
+          }
+
+          // Avoid bottom-tabs' deprecated navigate(route) call for inactive tabs.
+          event.preventDefault();
+          navigation.dispatch({
+            ...CommonActions.navigate(route.name, route.params),
+            target: navigation.getState().key,
+          });
+        },
+      })}
+      screenOptions={({ route }) => ({
         headerShown: true,
         headerStyle: {
           backgroundColor: paperTheme.colors.primary,
@@ -27,45 +46,37 @@ export default function BottomTabNavigator() {
           fontWeight: 'bold',
           fontSize: 20,
         },
-        headerRight: () => <ThemeToggle />,
-      }}
-      tabBar={({ navigation, state, descriptors, insets }) => (
-        <BottomNavigation.Bar
-          navigationState={state}
-          safeAreaInsets={insets}
-          onTabPress={({ route, preventDefault }) => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (event.defaultPrevented) {
-              preventDefault();
-            } else {
-              navigation.navigate(route.name);
-            }
-          }}
-          renderIcon={({ route, focused, color }) => {
-            let iconName;
-            switch (route.name) {
-              case 'Add Deduction':
-                iconName = 'scale-bathroom';
-                break;
-              case 'View Collection':
-                iconName = 'format-list-text';
-                break;
-              case 'Add Count':
-                iconName = 'counter';
-                break;
-            }
-            return <MaterialCommunityIcons name={iconName} size={24} color={color} />;
-          }}
-          getLabelText={({ route }) => route.name}
-          activeColor={paperTheme.colors.primary}
-          inactiveColor={paperTheme.colors.textSecondary}
-          style={{ backgroundColor: paperTheme.colors.surface }}
-        />
-      )}
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ThemeToggle />
+            <LogoutButton />
+          </View>
+        ),
+        tabBarShowLabel: true,
+        tabBarLabelPosition: 'below-icon',
+        tabBarLabel: route.name,
+        tabBarLabelStyle: paperTheme.fonts.labelMedium,
+        tabBarActiveTintColor: paperTheme.colors.primary,
+        tabBarInactiveTintColor: paperTheme.colors.textSecondary || paperTheme.colors.onSurfaceVariant,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 64 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 8),
+            backgroundColor: paperTheme.colors.surface,
+            borderTopColor: paperTheme.colors.outlineVariant,
+          },
+        ],
+        tabBarIcon: ({ color }) => {
+          const icons = {
+            'Add Deduction': 'scale-bathroom',
+            'View Collection': 'format-list-text',
+            'Add Count': 'counter',
+          };
+
+          return <MaterialCommunityIcons name={icons[route.name]} size={24} color={color} />;
+        },
+      })}
     >
       {canAddDeduction && (
       <Tab.Screen 
@@ -95,3 +106,10 @@ export default function BottomTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 8,
+  },
+});

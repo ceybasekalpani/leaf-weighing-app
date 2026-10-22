@@ -1,4 +1,4 @@
-﻿import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -16,21 +16,23 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('@user');
+        if (userStr) setUser(JSON.parse(userStr));
+      } catch (error) {
+        console.error('Error loading user:', error);
+      } finally {
+        setIsLoading(false);
+        setIsInitializing(false);
+      }
+    };
+
     loadUser();
   }, []);
-
-  const loadUser = async () => {
-    try {
-      const userStr = await AsyncStorage.getItem('@user');
-      if (userStr) setUser(JSON.parse(userStr));
-    } catch (error) {
-      console.error('Error loading user:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const login = async (username, password) => {
     setIsLoading(true);
@@ -105,16 +107,17 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('@user');
-      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.multiRemove(['@user', 'userToken']);
       setUser(null);
+      return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
+      return { success: false, error: 'Could not log out. Please try again.' };
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, isLoading, isInitializing, login, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
