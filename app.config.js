@@ -148,7 +148,7 @@ export default {
       eas: {
         projectId: "a9ef9192-239e-4d9b-a933-2241ae8f7261"
       },
-      apiUrl: process.env.API_URL || 'http://192.168.8.108:5000/api'
+      apiUrl: process.env.API_URL || 'https://leaf-weighing-backend-dotnet.onrender.com/api'
     }
   }
 };
